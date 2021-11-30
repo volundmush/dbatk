@@ -7,6 +7,9 @@
 
 #include "ringmud/sysdep.h"
 
+#include <bitset>
+#include <iostream>
+
 
 
 #endif //DBATK_SYSDEP_H

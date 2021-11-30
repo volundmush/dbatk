@@ -21,6 +21,10 @@ namespace dbat::core {
 
     void setup_cb();
 
+    void init();
+
+    void start(const std::string& hostname, uint16_t port);
+
 }
 
 #endif //DBATK_CORE_H

@@ -55,4 +55,14 @@ namespace dbat::core {
         dbat::mobile::setup_cb();
     }
 
+    void init() {
+        setup_cb();
+        ring::core::load_db();
+    }
+
+    void start(const std::string& hostname, uint16_t port) {
+        init();
+        ring::core::game_loop(hostname, port);
+    }
+
 }

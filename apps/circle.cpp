@@ -6,6 +6,7 @@
 #include "ringmud/core.h"
 #include "argh.h"
 #include <iostream>
+#include "core.h"
 
 int main(int argc, char* argv[])
 {
@@ -39,7 +40,7 @@ int main(int argc, char* argv[])
         port = std::strtoul(st.c_str(), nullptr, 10);
     }
 
+    dbat::core::start("0.0.0.0", port);
 
-
-    return (0);
+    return 0;
 }

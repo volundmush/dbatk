@@ -55,15 +55,20 @@ CPMAddPackage(
 )
 
 CPMAddPackage(
-        name sqlitepp
-        GITHUB_REPOSITORY mpaland/sqlitepp
-        GIT_TAG 1.6.0
+        name SQLiteCpp
+        GITHUB_REPOSITORY SRombauts/SQLiteCpp
+        GIT_TAG 3.1.1
 )
 
 CPMAddPackage(
         name argh
         GITHUB_REPOSITORY adishavit/argh
         VERSION 1.3.1
+)
+
+CPMAddPackage(
+        NAME boost
+        URL https://boostorg.jfrog.io/artifactory/main/release/1.77.0/source/boost_1_77_0.7z
 )
 
 file(GLOB DBATK_INCLUDE src/*.h)
@@ -75,6 +80,9 @@ set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_CXX_FLAGS "-fpermissive")
 
+
+find_package(SQLite3 REQUIRED)
+
 include_directories(PUBLIC
         include/dbatk
         ${asio_SOURCE_DIR}/asio/include
@@ -84,11 +92,15 @@ include_directories(PUBLIC
         ${eff_random_SOURCE_DIR}/include
         ${ringnet_SOURCE_DIR}/include
         ${ringmud_SOURCE_DIR}/include
-        ${sqlitepp_SOURCE_DIR}
+        ${SQLiteCpp_SOURCE_DIR}/include
         ${argh_SOURCE_DIR}
+        ${boost_SOURCE_DIR}
+        ${SQLite3_INCLUDE_DIRS}
 )
 
-link_libraries(fmt::fmt ringnet ringmud)
+
+
+link_libraries(fmt::fmt ringnet ringmud ${SQLite3_LIBRARIES} SQLiteCpp)
 
 find_library(LIBBSD NAMES bsd libbsd)
 
@@ -104,5 +116,6 @@ link_libraries(dbatk)
 target_compile_definitions(dbatk PUBLIC USING_CMAKE=1 CIRCLE_UNIX=1 POSIX=1)
 
 add_executable(circle apps/circle.cpp)
+add_executable(dbconv apps/dbconv.cpp)
 
 SET(dbatk_link ${CMAKE_INSTALL_PREFIX}/bin/)
