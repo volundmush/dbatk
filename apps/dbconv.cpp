@@ -12,6 +12,7 @@
 #include "item.h"
 #include "mobile.h"
 
+using namespace dbat;
 
 std::map<std::string, std::string> char_map;
 std::map<std::string, int> user_map;
@@ -192,8 +193,8 @@ void import_zone(const fs::path& zpath) {
     vnum bottom = std::strtoull(details[0].c_str(), nullptr, 10);
     vnum top = std::strtoull(details[1].c_str(), nullptr, 10);
 
-    auto z_ent = ring::zone::create(z_vnum, bottom, top);
-    auto &zdata = ring::core::registry.get<ring::zone::ZoneData>(z_ent);
+    auto z_ent = zone::create(z_vnum, bottom, top);
+    auto &zdata = core::registry.get<zone::ZoneData>(z_ent);
     zdata.lifespan = std::strtoull(details[2].c_str(), nullptr, 10);
     zdata.reset_mode = std::strtoull(details[3].c_str(), nullptr, 10);
     parse_flags(details, 4, zdata.flags);
@@ -229,8 +230,8 @@ void import_zones(const fs::path& dir) {
 void import_trigger(vnum v, std::ifstream &f) {
     std::string line;
 
-    auto ent = ring::dgscript::create(v);
-    auto &d = ring::core::registry.get<ring::dgscript::DgScriptData>(ent);
+    auto ent = dgscript::create(v);
+    auto &d = core::registry.get<dgscript::DgScriptData>(ent);
     std::getline(f, d.name, '~'); // load the zone's name to name.
     std::getline(f, line); // This will move to the next line after the ~
     std::vector<std::string> details;
@@ -271,8 +272,8 @@ void import_triggers(const fs::path& dir) {
 void import_room(vnum v, std::ifstream &f) {
     std::string line;
 
-    auto ent = ring::room::create(v);
-    auto &d = ring::core::registry.get<ring::room::RoomData>(ent);
+    auto ent = room::create(v);
+    auto &d = core::registry.get<room::RoomData>(ent);
     std::getline(f, d.name, '~'); // load the zone's name to name.
     std::getline(f, line); // This will move to the next line after the ~
 
@@ -318,7 +319,7 @@ void import_room(vnum v, std::ifstream &f) {
         } else if(line[0] == 'D') {
             // we are processing Direction data.
             details.clear();
-            ring::room::Direction direction = (ring::room::Direction)std::strtoull(line.substr(1).c_str(), nullptr, 10);
+            room::Direction direction = (room::Direction)std::strtoull(line.substr(1).c_str(), nullptr, 10);
             auto &e = d.exits[direction];
             e.dir = direction;
             std::getline(f, e.description, '~');
@@ -332,20 +333,20 @@ void import_room(vnum v, std::ifstream &f) {
             for(const auto &s : details) nums.push_back(std::strtoull(s.c_str(), nullptr, 10));
             switch(nums[0]) {
                 case 1:
-                    e.flags[ring::room::ExDoor] = true;
+                    e.flags[room::ExDoor] = true;
                     break;
                 case 2:
-                    e.flags[ring::room::ExDoor] = true;
-                    e.flags[ring::room::ExPickProof] = true;
+                    e.flags[room::ExDoor] = true;
+                    e.flags[room::ExPickProof] = true;
                     break;
                 case 3:
-                    e.flags[ring::room::ExDoor] = true;
-                    e.flags[ring::room::ExSecret] = true;
+                    e.flags[room::ExDoor] = true;
+                    e.flags[room::ExSecret] = true;
                     break;
                 case 4:
-                    e.flags[ring::room::ExDoor] = true;
-                    e.flags[ring::room::ExSecret] = true;
-                    e.flags[ring::room::ExPickProof] = true;
+                    e.flags[room::ExDoor] = true;
+                    e.flags[room::ExSecret] = true;
+                    e.flags[room::ExPickProof] = true;
                     break;
             }
             if(nums[1] != 65535) e.key = nums[1];
@@ -395,8 +396,8 @@ void import_rooms(const fs::path& dir) {
 void import_object(vnum v, std::ifstream &f) {
     std::string line;
 
-    auto ent = ring::item::create(v);
-    auto &d = ring::core::registry.get<ring::item::ItemProtoData>(ent);
+    auto ent = item::create(v);
+    auto &d = core::registry.get<item::ItemProtoData>(ent);
     std::getline(f, line, '~'); // keywords-name.
     d.name = line;
     boost::algorithm::to_lower(line);
@@ -437,6 +438,30 @@ void import_object(vnum v, std::ifstream &f) {
     d.level = nums[3];
     d.size = 4;
 
+    while(true) {
+        auto pos = f.tellg();
+        std::getline(f, line);
+        if(line[0] == '$' || line[0] == '#') {
+            // we have reached EOF or a new room.
+            f.seekg(pos);
+            return;
+        } else if (line[0] == 'E') {
+            // we are attaching an Extra Description!
+            auto &ex = d.ex_descriptions.emplace_back();
+            std::getline(f, ex.keyword);
+            details.clear();
+            while(true) {
+                std::getline(f, line);
+                if(line == "~") break;
+                details.push_back(line);
+            }
+            if(!details.empty()) ex.description = boost::algorithm::join(details, "\r\n");
+        } else if(line[0] == 'T') {
+            // we are attaching a trigger!
+            details.clear();
+            boost::algorithm::split(details, line, boost::algorithm::is_space());
+            d.triggers.insert(std::strtoull(details[1].c_str(), nullptr, 10));
+        }
 
 }
 
@@ -477,7 +502,7 @@ int main(int argc, char* argv[]) {
     if(!st.empty()) {
         input_dir = fs::path(st);
         if(!fs::exists(input_dir))
-            throw std::runtime_error(fmt::format("Cannot access path: {}", ring::core::profile_path.string()));
+            throw std::runtime_error(fmt::format("Cannot access path: {}", core::profile_path.string()));
         st.clear();
     } else {
         throw std::runtime_error(fmt::format("Requires an input directory!"));
@@ -487,16 +512,16 @@ int main(int argc, char* argv[]) {
 
     cmdl({"-o", "--odir"}) >> st;
     if(!st.empty()) {
-        ring::core::profile_path = fs::path(st);
-        fs::create_directories(ring::core::profile_path);
-        if(!fs::exists(ring::core::profile_path))
-            throw std::runtime_error(fmt::format("Cannot access path: {}", ring::core::profile_path.string()));
+        core::profile_path = fs::path(st);
+        fs::create_directories(core::profile_path);
+        if(!fs::exists(core::profile_path))
+            throw std::runtime_error(fmt::format("Cannot access path: {}", core::profile_path.string()));
         st.clear();
     } else {
         throw std::runtime_error(fmt::format("Requires an output directory!"));
     }
 
-    std::cout << "Output Dir is: " << ring::core::profile_path.string() << std::endl;
+    std::cout << "Output Dir is: " << core::profile_path.string() << std::endl;
 
     dbat::db::init_db();
 
@@ -514,16 +539,16 @@ int main(int argc, char* argv[]) {
     //migrate_users(user_dir);
 
     import_zones(zone_dir);
-    std::cout << "Imported " << ring::zone::zones.size() << " zones." << std::endl;
+    std::cout << "Imported " << zone::zones.size() << " zones." << std::endl;
 
     import_triggers(script_dir);
-    std::cout << "Imported " << ring::dgscript::dgscripts.size() << " triggers." << std::endl;
+    std::cout << "Imported " << dgscript::dgscripts.size() << " triggers." << std::endl;
 
     import_rooms(room_dir);
-    std::cout << "Imported " << ring::room::rooms.size() << " rooms." << std::endl;
+    std::cout << "Imported " << room::rooms.size() << " rooms." << std::endl;
 
     import_objects(obj_dir);
-    std::cout << "Imported " << ring::item::items.size() << " items." << std::endl;
+    std::cout << "Imported " << item::items.size() << " items." << std::endl;
 
 
 }

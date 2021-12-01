@@ -10,10 +10,10 @@ namespace dbat::db {
     std::unique_ptr<SQLite::Database> gamedb;
 
     bool init_db() {
-        gamedb = std::make_unique<SQLite::Database>(ring::core::profile_path / "gamedb.sqlite3", SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
+        gamedb = std::make_unique<SQLite::Database>(core::profile_path / "gamedb.sqlite3", SQLite::OPEN_READWRITE|SQLite::OPEN_CREATE);
         SQLite::Statement q(*gamedb, "CREATE TABLE IF NOT EXISTS Migrations(mig_id INT PRIMARY KEY,mig_filename TEXT NOT NULL UNIQUE,mig_date DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP);");
         q.exec();
-        auto schema_path = ring::core::profile_path / "schema";
+        auto schema_path = core::profile_path / "schema";
 
         std::list<std::string> mignames;
         for (const auto &f: std::filesystem::directory_iterator(schema_path)) {

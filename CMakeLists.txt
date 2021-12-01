@@ -18,11 +18,6 @@ CPMAddPackage(
         GIT_TAG main
 )
 
-CPMAddPackage(
-        NAME ringmud
-        GITHUB_REPOSITORY volundmush/ringmud
-        GIT_TAG main
-)
 
 CPMAddPackage(
         NAME asio
@@ -91,7 +86,6 @@ include_directories(PUBLIC
         ${fmt_SOURCE_DIR}/include
         ${eff_random_SOURCE_DIR}/include
         ${ringnet_SOURCE_DIR}/include
-        ${ringmud_SOURCE_DIR}/include
         ${SQLiteCpp_SOURCE_DIR}/include
         ${argh_SOURCE_DIR}
         ${boost_SOURCE_DIR}

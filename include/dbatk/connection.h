@@ -5,10 +5,13 @@
 #ifndef DBATK_CONNECTION_H
 #define DBATK_CONNECTION_H
 
-#include "sysdep.h"
-#include "ringmud/connection.h"
+#include "core.h"
+#include "ringnet/net.h"
 
 namespace dbat::conn {
+
+    extern std::map<uint64_t, entt::entity> connections;
+    extern std::set<uint64_t> closing;
 
     enum ConnState : uint8_t {
         Login = 0,
@@ -16,28 +19,40 @@ namespace dbat::conn {
         Session = 2
     };
 
-    struct StateData {
+    struct ConnectionData {
+        ~ConnectionData();
+        std::weak_ptr<ring::net::connection_details> conn;
+        std::list<nlohmann::json> input;
+        entt::entity entity;
+        uint64_t conn_id;
         ConnState state = Login;
         opt_type<int64_t> user_id;
         opt_type<uint64_t> session;
+
+        void process_input();
+        void send_text(const std::string& txt, ring::net::TextType mode);
+        bool isColor();
     };
 
-    void cb_make_connection(uint64_t conn_id, entt::entity ent);
-    void cb_create_connection(uint64_t conn_id, entt::entity ent);
-    void cb_close_connection(uint64_t conn_id, entt::entity ent);
+    entt::entity make_connection(uint64_t conn_id);
 
-    void cb_load_connection(uint64_t conn_id, entt::entity ent, nlohmann::json& j);
-    void cb_save_connection(uint64_t conn_id, entt::entity ent, nlohmann::json& j);
+    entt::entity create_connection(uint64_t conn_id);
 
-    void cb_handle_input(uint64_t conn_id, entt::entity ent, nlohmann::json& j);
+    void close_connection(uint64_t conn_id);
+
+    nlohmann::json save_connection(uint64_t conn_id);
+
+    nlohmann::json save_connections();
+
+    void load_connection(uint64_t conn_id, nlohmann::json &j);
+
+    void load_connections(nlohmann::json& j);
 
     void handle_cmd_login(uint64_t conn_id, entt::entity ent, const std::string& txt);
 
     void handle_cmd_menu(uint64_t conn_id, entt::entity ent, const std::string& txt);
 
     void handle_cmd_session(uint64_t conn_id, entt::entity ent, const std::string& txt);
-
-    void setup_cb();
 
 }
 

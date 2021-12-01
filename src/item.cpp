@@ -3,28 +3,81 @@
 //
 
 #include "item.h"
+#include "core.h"
 
 namespace dbat::item {
-    void cb_create_item(vnum item, entt::entity ent) {}
-    void cb_make_item(vnum item, entt::entity ent) {}
-    void cb_delete_item(vnum item, entt::entity ent) {}
-    void cb_save_item(vnum item, entt::entity ent, nlohmann::json& j) {}
-    void cb_load_item(vnum item, entt::entity ent, nlohmann::json& j) {}
+    std::map<vnum, entt::entity> items;
+    std::set<entt::entity> instances;
 
-    void cb_make_instance(vnum item, entt::entity ent) {}
-    void cb_create_instance(vnum item, entt::entity ent) {}
-    void cb_save_instance(entt::entity ent, nlohmann::json& j) {}
-    void cb_load_instance(entt::entity ent, nlohmann::json& j) {}
+    entt::entity make_instance(vnum new_item) {
+        auto pent = items[new_item];
+        auto new_ent = core::registry.create();
+        auto &iprot = core::registry.get<ItemProtoData>(pent);
+        auto &idata = core::registry.emplace<ItemInstanceData>(new_ent);
+        idata.vn = new_item;
+        idata.entity = new_ent;
+        iprot.instances.insert(new_ent);
+        idata.prototype = pent;
+        instances.insert(new_ent);
 
-    void setup_cb() {
-        ring::item::on_create_item = cb_create_item;
-        ring::item::on_delete_item = cb_delete_item;
-        ring::item::on_make_item = cb_make_item;
-        ring::item::on_save_item = cb_save_item;
-        ring::item::on_load_item = cb_load_item;
-        ring::item::on_make_instance = cb_make_instance;
-        ring::item::on_create_instance = cb_create_instance;
-        ring::item::on_save_instance = cb_save_instance;
-        ring::item::on_load_instance = cb_load_instance;
+        return new_ent;
+    }
+
+    entt::entity make_item(vnum new_item) {
+        auto new_ent = core::registry.create();
+        auto &iprot = core::registry.emplace<ItemProtoData>(new_ent);
+        iprot.vn = new_item;
+        iprot.entity = new_ent;
+        items[new_item] = new_ent;
+
+        return new_ent;
+    }
+
+    entt::entity create_instance(vnum new_item) {
+        if(!items.count(new_item))
+            throw std::runtime_error(fmt::format("Item {} does not exist!", new_item));
+        auto ent = make_instance(new_item);
+
+        return ent;
+    }
+
+    entt::entity create(vnum new_item) {
+        if(items.count(new_item))
+            throw std::runtime_error(fmt::format("Item {} already exists!", new_item));
+        auto ent = make_item(new_item);
+
+        return ent;
+    }
+
+    nlohmann::json save_instance(entt::entity ent) {
+        nlohmann::json j;
+
+        return j;
+    }
+
+    nlohmann::json save_item(vnum item) {
+        auto ent = items[item];
+        nlohmann::json j;
+
+        return j;
+    }
+
+    entt::entity load_item(vnum item, nlohmann::json& j) {
+        auto ent = make_item(item);
+        auto &pdata = core::registry.get<ItemProtoData>(ent);
+
+        return ent;
+    }
+
+    entt::entity load_instance(vnum item, nlohmann::json& j) {
+        auto ent = make_instance(item);
+
+    }
+
+    void load_items(vnum zone, entt::entity zent, nlohmann::json& j) {
+        for(nlohmann::json::iterator it = j.begin(); it != j.end();it++) {
+            vnum vn = std::strtoull(it.key().c_str(), nullptr, 10);
+            load_item(vn, it.value());
+        }
     }
 }
