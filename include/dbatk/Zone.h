@@ -33,7 +33,7 @@ namespace kaizermud::dbat {
 
     class Zone {
     public:
-        std::string_view name, builders;
+        std::string name, builders;
         int lifespan, age, reset_mode, min_level, max_level;
         ObjectID id, bot, top;
         std::bitset<36> flags;
@@ -42,6 +42,6 @@ namespace kaizermud::dbat {
     };
 
     std::map<ObjectID, Zone> zones;
-    std::map<int, std::string_view> zoneFlags;
+    std::map<int, std::string> zoneFlags;
 
 }

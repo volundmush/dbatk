@@ -1,5 +1,4 @@
 #include "dbatk/Database.h"
-#include "dbatk/Character.h"
 #include "fmt/format.h"
 #include "kaizermud/utils.h"
 
@@ -182,12 +181,9 @@ namespace kaizermud::dbat {
             ");"
     };
 
-    std::vector<std::pair<std::string, std::reference_wrapper<std::map<int, std::string_view>>>> getFlagDefs() {
+    std::vector<std::pair<std::string, std::reference_wrapper<std::map<int, std::string>>>> getFlagDefs() {
         return {
-                {"npc_flag_bits", npcFlags},
-                {"player_flag_bits", playerFlags},
-                {"admin_flag_bits", adminFlags},
-                {"preference_flag_bits", preferenceFlags}
+
         };
     }
 
@@ -199,7 +195,7 @@ namespace kaizermud::dbat {
             while(stmt.executeStep()) {
                 auto id = stmt.getColumn(0).getInt();
                 auto name = stmt.getColumn(1).getText();
-                fmap.emplace(id, utils::intern(std::string(name)));
+                fmap.emplace(id, name);
             }
 
         }

@@ -3,17 +3,10 @@
 #include <filesystem>
 #include "kaizermud/base.h"
 #include "kaizermud/game.h"
-#include "kaizermud/Object.h"
+#include "kaizermud/Api.h"
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "dbatk/Core.h"
 
-#include "dbatk/Room.h"
-#include "dbatk/Character.h"
-#include "dbatk/Item.h"
-#include "dbatk/Grid.h"
-#include "dbatk/Sector.h"
-#include "dbatk/Structure.h"
-#include "dbatk/Exit.h"
 #include "fmt/format.h"
 
 
@@ -39,16 +32,17 @@ static void import_rooms() {
             std::cout << "Importing Room " << id << ": " << clean_name << std::endl;
         }
 
-        auto [room, err] = kaizermud::game::createObject("room", "basic", id);
-        if (!room) {
+        auto [room, err] = kaizermud::createEntity("room", "basic", id);
+
+        if (!registry.valid(room)) {
             std::cerr << "Error: " << err.value() << std::endl;
             exit(1);
         }
 
-        room->setString("name", clean_name);
-        room->setString("short_description", name);
-        room->setString("look_description", look_description);
-        room->setString("sense_location", sense_location);
+        kaizermud::api::setString(room, "name", clean_name);
+        kaizermud::api::setString(room, "short_description", name);
+        kaizermud::api::setString(room, "look_description", look_description);
+        kaizermud::api::setString(room, "sense_location", sense_location);
 
     }
 
@@ -120,42 +114,39 @@ static void import_exits() {
                 break;
         }
 
-        auto room_it = kaizermud::game::objects.find(room_id);
-        if(room_it == kaizermud::game::objects.end()) {
+        auto room_it = kaizermud::entities.find(room_id);
+        if(room_it == kaizermud::entities.end()) {
             std::cerr << "Error: << " << dirName << " Exit for room_id " << room_id << " but room not found." << std::endl;
             exit(1);
         }
 
         auto room = room_it->second;
 
-        auto dest_it = kaizermud::game::objects.find(to_room);
-        if(dest_it == kaizermud::game::objects.end()) {
+        auto dest_it = kaizermud::entities.find(to_room);
+        if(dest_it == kaizermud::entities.end()) {
             std::cerr << "Error: << " << dirName << " Exit for room_id " << room_id << " but destination not found." << std::endl;
             continue;
         }
 
         auto dest = dest_it->second;
-
-        auto [ex, err] = kaizermud::game::createObject("exit", "basic");
-        if (!ex) {
+        auto [ex, err] = kaizermud::createEntity("exit", "basic");
+        if (!registry.valid(ex)) {
             std::cerr << "Error: " << err.value() << std::endl;
             exit(1);
         }
 
         if(counter++ % 100 == 0) {
-            std::cout << fmt::format("Importing Exit {} ({} to {} - {})", ex->getId(), room->getString("name").value_or("Unknown"), dest->getString("name").value_or("Unknown"), dirName) <<  std::endl;
+            std::cout << fmt::format("Importing Exit ({} to {} - {})", kaizermud::api::getString(room, "name").value_or("Unknown"), kaizermud::api::getString(dest, "name").value_or("Unknown"), dirName) <<  std::endl;
         }
 
-        ex->setString("name", dirName);
+
+        auto &inf = registry.get<kaizermud::components::ObjectInfo>(ex);
+
+        kaizermud::api::setString(ex, "name", dirName);
         //if(!general_description.empty()) ex->setString("general_description", general_description);
         //if(!keyword.empty()) ex->setString("keyword", keyword);
-        auto param = kaizermud::game::CallParameters().setObject("destination", room).setBool("quiet", true).setString("movetype", "system");
-        auto [res, moveError] = ex->moveTo(param);
-        if(!res) {
-            std::cerr << "Error: " << moveError.value() << std::endl;
-            exit(1);
-        }
-        ex->setRelation("destination", dest);
+        kaizermud::api::setRelation(ex, "exitFor", room);
+        kaizermud::api::setRelation(ex, "destination", dest);
 
     }
 
@@ -195,7 +186,7 @@ int main(int argc, char* argv[]) {
 
     load_db();
 
-    std::cout << fmt::format("Length of objects: {}", game::objects.size()) << std::endl;
+    std::cout << fmt::format("Length of objects: {}", entities.size()) << std::endl;
 
     std::cout << "program finished. Please press enter to exit." << std::endl;
     std::cin.get();

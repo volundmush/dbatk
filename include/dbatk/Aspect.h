@@ -1,5 +1,5 @@
 #pragma once
-#include "kaizermud/Aspect.h"
+#include "kaizermud/Aspects.h"
 
 namespace kaizermud::dbat::aspect {
 
@@ -10,8 +10,8 @@ namespace kaizermud::dbat::aspect {
     class DBATAspectSlot : public kaizermud::game::AspectSlot {
     public:
         using kaizermud::game::AspectSlot::AspectSlot;
-        virtual kaizermud::game::OpResult atPostLoad() override;
-        virtual std::optional<std::string> getDefault() const = 0;
+        virtual kaizermud::OpResult<> atPostLoad(entt::entity ent);
+        [[nodiscard]] virtual std::optional<std::string> getDefault() const = 0;
     };
 
     // Character Aspect Slots.
@@ -19,30 +19,30 @@ namespace kaizermud::dbat::aspect {
     public:
         using DBATAspectSlot::DBATAspectSlot;
         std::optional<std::string> getDefault() const override;
-    }
+    };
 
     class SenseiSlot : public DBATAspectSlot {
     public:
         using DBATAspectSlot::DBATAspectSlot;
         std::optional<std::string> getDefault() const override;
-    }
+    };
 
     class PositionSlot : public DBATAspectSlot {
     public:
         using DBATAspectSlot::DBATAspectSlot;
         std::optional<std::string> getDefault() const override;
-    }
+    };
 
     class SexSlot : public DBATAspectSlot {
     public:
         using DBATAspectSlot::DBATAspectSlot;
         std::optional<std::string> getDefault() const override;
-    }
+    };
 
     class SubSpeciesSlot : public DBATAspectSlot {
     public:
         using DBATAspectSlot::DBATAspectSlot;
-    }
+    };
 
     // Character Aspects
     // Race
@@ -50,7 +50,7 @@ namespace kaizermud::dbat::aspect {
     public:
         using DBATAspect::DBATAspect;
 
-    }
+    };
 
     class Human : public Race {
     public:
@@ -177,7 +177,7 @@ namespace kaizermud::dbat::aspect {
     class Sensei : public DBATAspect {
     public:
         using DBATAspect::DBATAspect;
-    }
+    };
 
     class Roshi : public Sensei {
     public:
@@ -258,8 +258,8 @@ namespace kaizermud::dbat::aspect {
 
     class Sex : public DBATAspect {
     public:
-        using DBATAspectSlot::DBATAspect;
-    }
+        using DBATAspect::DBATAspect;
+    };
 
     class Neuter : public Sex {
     public:

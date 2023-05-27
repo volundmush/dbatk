@@ -50,8 +50,8 @@ namespace kaizermud::dbat {
 
     class DgScriptHandler {
     public:
-        explicit DgScriptHandler(const std::shared_ptr<game::Object> &obj);
-        std::shared_ptr<game::Object> obj;
+        explicit DgScriptHandler(entt::entity ent);
+        entt::entity ent;
         std::vector<std::shared_ptr<DgScript>> scripts{};
     };
 

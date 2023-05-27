@@ -2,16 +2,16 @@
 
 namespace kaizermud::dbat::aspect {
 
-    kaizermud::game::OpResult DBATAspectSlot::atPostLoad() {
-        if (aspect) {
-            return {true, std::nullopt};
-        }
+    kaizermud::OpResult<> DBATAspectSlot::atPostLoad(entt::entity ent) {
+        //if (aspect) {
+         //   return {true, std::nullopt};
+        //}
         auto def = getDefault();
         if(!def.has_value()) return {true, std::nullopt};
-        return setAspect(def.value())
+        return setAspect(ent, def.value());
     }
 
-    std::string_view DBATAspectSlot::getDefault() const {
+    std::optional<std::string> DBATAspectSlot::getDefault() const {
         return std::nullopt;
     }
 
@@ -26,6 +26,10 @@ namespace kaizermud::dbat::aspect {
 
     std::optional<std::string> SexSlot::getDefault() const {
         return "neuter";
+    }
+
+    std::optional<std::string> SenseiSlot::getDefault() const {
+        return "commoner";
     }
 
 }
