@@ -4,7 +4,7 @@
 #include <set>
 #include <map>
 
-namespace kaizermud::dbat {
+namespace dbat {
 
     class DgScriptHandler;
 
@@ -12,7 +12,7 @@ namespace kaizermud::dbat {
 
     class DgScriptPrototype {
     public:
-        ObjectID id;
+        kaizer::ObjectID id;
         std::string name;
         uint8_t scriptType;
         std::bitset<32> triggerType;
@@ -55,7 +55,7 @@ namespace kaizermud::dbat {
         std::vector<std::shared_ptr<DgScript>> scripts{};
     };
 
-    extern std::map<ObjectID, std::shared_ptr<DgScriptPrototype>> dgScripts;
+    extern std::map<kaizer::ObjectID, std::shared_ptr<DgScriptPrototype>> dgScripts;
 
     extern std::set<std::shared_ptr<DgScript>> dgScriptsWaiting;
 

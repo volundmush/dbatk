@@ -3,7 +3,7 @@
 #include <map>
 #include <bitset>
 
-namespace kaizermud::dbat {
+namespace dbat {
 
     struct reset_com {
         char command;   /* current command                      */
@@ -35,13 +35,12 @@ namespace kaizermud::dbat {
     public:
         std::string name, builders;
         int lifespan, age, reset_mode, min_level, max_level;
-        ObjectID id, bot, top;
+        kaizer::ObjectID id, bot, top;
         std::bitset<36> flags;
         std::vector<reset_com> cmds;
 
     };
 
-    std::map<ObjectID, Zone> zones;
-    std::map<int, std::string> zoneFlags;
+    std::map<kaizer::ObjectID, Zone> zones;
 
 }

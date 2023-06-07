@@ -2,7 +2,7 @@
 #include "kaizermud/Database.h"
 #include <map>
 
-namespace kaizermud::dbat {
+namespace dbat {
     extern std::vector<std::string> extendSchema;
 
     std::vector<std::pair<std::string, std::reference_wrapper<std::map<int, std::string>>>> getFlagDefs();
