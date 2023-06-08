@@ -3,7 +3,7 @@
 namespace dbat::types {
 
     void registerDBTypes() {
-        kaizer::typeRegistry["room"] = std::make_shared<Room>();
+        registerType(std::make_shared<Room>());
     }
 
 }

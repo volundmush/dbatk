@@ -4,6 +4,7 @@
 #include "fmt/args.h"
 #include "dbatk/Terrain.h"
 #include "kaizermud/Color.h"
+#include "dbatk/Components.h"
 
 namespace dbat {
 
@@ -32,31 +33,26 @@ namespace dbat {
     };
 
     static std::vector<std::string> generateCompass(entt::entity ent, entt::entity looker) {
-        std::vector<entt::entity> exits;
+        auto excomp = kaizer::registry.try_get<kaizer::components::Exits>(ent);
 
-        auto rev = kaizer::getReverseRelation(ent, "exit");
-        if (rev.has_value()) exits = rev.value().get();
 
         fmt::dynamic_format_arg_store<fmt::format_context> args;
         std::unordered_map<std::string, std::string> exArgs;
         for(auto &[name, key] : exitMap) {
             exArgs[key] = " ";
         }
-
-        for (auto &[name, key]: exitMap) {
-            // check if exits contains a matching name, and if so, we'll create an arg for it using the key.
-            // If it doesn't contain a match, then we set the arg to an empty space.
-            auto it = std::find_if(exits.begin(), exits.end(), [&](auto &e) {
-                return boost::iequals(kaizer::getDisplayName(e, looker), name);
-            });
-            if (it != exits.end()) {
-                if(name == "outside") {
-                    exArgs["I"] = "OUT";
-                } else {
-                    exArgs[key] = key;
+        if(excomp)
+            for (auto &[name, key]: exitMap) {
+                // check if exits contains a matching name, and if so, we'll create an arg for it using the key.
+                // If it doesn't contain a match, then we set the arg to an empty space.
+                if (excomp->data.contains(name)) {
+                    if(name == "outside") {
+                        exArgs["I"] = "OUT";
+                    } else {
+                        exArgs[key] = key;
+                    }
                 }
             }
-        }
 
         for(auto &[key, value]: exArgs) {
             args.push_back(fmt::arg(key.c_str(), value));
@@ -87,50 +83,43 @@ namespace dbat {
         std::function<void(entt::entity, int, int)> scan = [&](entt::entity room, int curX, int curY) {
             if (visited.contains(room)) return;
             visited.insert(room);
+            auto &r = kaizer::registry.get<dbat::components::Room>(room);
+            curMap[curY][curX] = terrain::terrainRegistry[r.terrain]->getMapTile();
 
-            terrain::Terrain *ter = dynamic_cast<terrain::Terrain *>(kaizer::getAspect(room, "terrain"));
-            if(ter) {
-                curMap[curY][curX] = ter->getMapTile();
-            } else {
-                curMap[curY][curX] = "?";
-            }
-
-            auto rev = kaizer::getReverseRelation(room, "exit");
-            std::vector<entt::entity> exits;
-            if(rev.has_value()) exits = rev.value().get();
+            auto excomp = kaizer::registry.try_get<kaizer::components::Exits>(room);
 
             // Now we must iterate over all exits and scan those which correlate with cardinal directions: N, S, E, W and diagonals.
-            for(auto &exit : exits) {
-                auto name = kaizer::getDisplayName(exit, looker);
-                auto dest = kaizer::getRelation(exit, "destination");
-                if(!kaizer::registry.valid(dest)) continue;
+            if(excomp)
+                for(auto &[name, exit] : excomp->data) {
+                    auto dest = kaizer::getRelation(exit, "destination");
+                    if(!kaizer::registry.valid(dest)) continue;
 
-                if(boost::iequals(name, "north")) {
-                    if((curY + 1) <= maxY) scan(dest, curX, curY + 1);
+                    if(boost::iequals(name, "north")) {
+                        if((curY + 1) <= maxY) scan(dest, curX, curY + 1);
+                    }
+                    else if (boost::iequals(name, "south")) {
+                        if((curY - 1) >= minY) scan(dest, curX, curY - 1);
+                    }
+                    else if(boost::iequals(name, "east")) {
+                        if((curX + 1) <= maxX) scan(dest, curX + 1, curY);
+                    }
+                    else if(boost::iequals(name, "west")) {
+                        if((curX - 1) >= minX) scan(dest, curX - 1, curY);
+                    }
+                    else if(boost::iequals(name, "northeast")) {
+                        if((curX + 1) <= maxX && (curY + 1) <= maxY) scan(dest, curX + 1, curY + 1);
+                    }
+                    else if(boost::iequals(name, "northwest")) {
+                        if((curX - 1) >= minX && (curY + 1) <= maxY) scan(dest, curX - 1, curY + 1);
+                    }
+                    else if(boost::iequals(name, "southeast")) {
+                        if((curX + 1) <= maxX && (curY - 1) >= minY) scan(dest, curX + 1, curY - 1);
+                    }
+                    else if(boost::iequals(name, "southwest")) {
+                        if((curX - 1) >= minX && (curY - 1) >= minY) scan(dest, curX - 1, curY - 1);
+                    }
+                    // No other exit types are respected... yet...
                 }
-                else if (boost::iequals(name, "south")) {
-                    if((curY - 1) >= minY) scan(dest, curX, curY - 1);
-                }
-                else if(boost::iequals(name, "east")) {
-                    if((curX + 1) <= maxX) scan(dest, curX + 1, curY);
-                }
-                else if(boost::iequals(name, "west")) {
-                    if((curX - 1) >= minX) scan(dest, curX - 1, curY);
-                }
-                else if(boost::iequals(name, "northeast")) {
-                    if((curX + 1) <= maxX && (curY + 1) <= maxY) scan(dest, curX + 1, curY + 1);
-                }
-                else if(boost::iequals(name, "northwest")) {
-                    if((curX - 1) >= minX && (curY + 1) <= maxY) scan(dest, curX - 1, curY + 1);
-                }
-                else if(boost::iequals(name, "southeast")) {
-                    if((curX + 1) <= maxX && (curY - 1) >= minY) scan(dest, curX + 1, curY - 1);
-                }
-                else if(boost::iequals(name, "southwest")) {
-                    if((curX - 1) >= minX && (curY - 1) >= minY) scan(dest, curX - 1, curY - 1);
-                }
-                // No other exit types are respected... yet...
-            }
 
 
         };
@@ -151,26 +140,16 @@ namespace dbat {
         return lines;
     }
 
-    static std::vector<terrain::Terrain*> terrains;
 
     static std::vector<std::string> mapLegend;
 
     std::vector<std::string> generateMapLegend(entt::entity ent, entt::entity looker) {
-        if(terrains.empty()) {
-            // Populate terrains.
-            for(auto &[slot, asp] : kaizer::aspectRegistry["terrain"]) {
-                auto ter = dynamic_cast<terrain::Terrain *>(asp.get());
-                if(ter) terrains.push_back(ter);
-            }
-            // Now sort terrains by their getSortPriority() value.
-            std::sort(terrains.begin(), terrains.end(), [](terrain::Terrain *a, terrain::Terrain *b) {
-                return a->getSortPriority() < b->getSortPriority();
-            });
-        }
+
         if(mapLegend.empty()) {
             std::vector<std::string> legend;
-            for(auto t : terrains) {
-                if(t->displayOnLegend()) legend.emplace_back(fmt::format("{}: @W{}@n", t->getMapTile(), t->getName()));
+            for(auto t : terrain::terrainRegistry) {
+                if(t)
+                    if(t->displayOnLegend()) legend.emplace_back(fmt::format("{}: @W{}@n", t->getMapTile(), t->getName()));
             }
             legend.emplace_back("@RX@n: @WYou@n");
 
@@ -196,9 +175,9 @@ namespace dbat {
         lines.emplace_back(fmt::format("Location: {}", kaizer::getDisplayName(ent, looker)));
         lines.emplace_back("Placeholder");
         lines.emplace_back(roomHeader);
-        auto desc = kaizer::getString(ent, "look_description");
-        if (desc.has_value()) {
-            lines.emplace_back(desc.value());
+        auto ldesc = kaizer::registry.try_get<kaizer::components::LookDescription>(ent);
+        if (ldesc) {
+            lines.emplace_back(ldesc->data);
             lines.emplace_back(roomSubheader);
         }
         lines.emplace_back("       Compass        AutoMap                  Map Key");
@@ -223,14 +202,16 @@ namespace dbat {
     }
 
     std::string roomGetDisplayName(entt::entity ent, entt::entity looker) {
-        auto name = kaizer::getString(ent, "short_description");
-        if(name.has_value()) return std::string(name.value());
-        return fmt::format("Unnamed Room {}", kaizer::getID(ent));
+        auto sdesc = kaizer::registry.try_get<kaizer::components::ShortDescription>(ent);
+        if(sdesc) {
+            return std::string(sdesc->data);
+        }
+        return kaizer::defaultGetDisplayName(ent, looker);
     }
 
     void registerDBAPI() {
-        kaizer::renderAppearance.setOverride("room", roomRenderAppearance);
-        kaizer::getDisplayName.setOverride("room", roomGetDisplayName);
+        kaizer::renderAppearance.setOverride(3, roomRenderAppearance);
+        kaizer::getDisplayName.setOverride(3, roomGetDisplayName);
     }
 
 }

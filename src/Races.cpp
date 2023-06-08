@@ -3,42 +3,40 @@
 
 namespace dbat::race {
 
-    kaizer::OpResult<> NonPlayableRace::canSet(entt::entity ent) {
-        if(kaizer::getType(ent, "player")) {
-            return {false, "This race is only available for NPCs!"};
+    std::vector<std::shared_ptr<Race>> raceRegistry;
+    
+    void registerRace(const std::shared_ptr<Race>& entry) {
+        while(raceRegistry.size() < entry->getID() + 1) {
+            raceRegistry.emplace_back(nullptr);
         }
-        return {true, std::nullopt};
+        raceRegistry[entry->getID()] = entry;
     }
 
-
     void registerRaces() {
-        auto spirit = std::make_shared<Spirit>();
-        registerAspect(spirit);
-        kaizer::aspectSlotDefaults["race"] = spirit;
-
-        registerAspect(std::make_shared<Human>());
-        registerAspect(std::make_shared<Saiyan>());
-        registerAspect(std::make_shared<Icer>());
-        registerAspect(std::make_shared<Konatsu>());
-        registerAspect(std::make_shared<Namekian>());
-        registerAspect(std::make_shared<Mutant>());
-        registerAspect(std::make_shared<Kanassan>());
-        registerAspect(std::make_shared<HalfSaiyan>());
-        registerAspect(std::make_shared<BioAndroid>());
-        registerAspect(std::make_shared<Android>());
-        registerAspect(std::make_shared<Demon>());
-        registerAspect(std::make_shared<Majin>());
-        registerAspect(std::make_shared<Kai>());
-        registerAspect(std::make_shared<Tuffle>());
-        registerAspect(std::make_shared<Hoshijin>());
-        registerAspect(std::make_shared<Animal>());
-        registerAspect(std::make_shared<Saiba>());
-        registerAspect(std::make_shared<Serpent>());
-        registerAspect(std::make_shared<Ogre>());
-        registerAspect(std::make_shared<Yardratian>());
-        registerAspect(std::make_shared<Arlian>());
-        registerAspect(std::make_shared<Dragon>());
-        registerAspect(std::make_shared<Mechanical>());
+        registerRace(std::make_shared<Mechanical>());
+        registerRace(std::make_shared<Spirit>());
+        registerRace(std::make_shared<Human>());
+        registerRace(std::make_shared<Saiyan>());
+        registerRace(std::make_shared<Icer>());
+        registerRace(std::make_shared<Konatsu>());
+        registerRace(std::make_shared<Namekian>());
+        registerRace(std::make_shared<Mutant>());
+        registerRace(std::make_shared<Kanassan>());
+        registerRace(std::make_shared<HalfSaiyan>());
+        registerRace(std::make_shared<BioAndroid>());
+        registerRace(std::make_shared<Android>());
+        registerRace(std::make_shared<Demon>());
+        registerRace(std::make_shared<Majin>());
+        registerRace(std::make_shared<Kai>());
+        registerRace(std::make_shared<Tuffle>());
+        registerRace(std::make_shared<Hoshijin>());
+        registerRace(std::make_shared<Animal>());
+        registerRace(std::make_shared<Saiba>());
+        registerRace(std::make_shared<Serpent>());
+        registerRace(std::make_shared<Ogre>());
+        registerRace(std::make_shared<Yardratian>());
+        registerRace(std::make_shared<Arlian>());
+        registerRace(std::make_shared<Dragon>());
     }
 
 }

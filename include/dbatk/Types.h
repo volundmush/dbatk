@@ -4,7 +4,6 @@
 
 namespace dbat::types {
     struct Room : kaizer::base::Room {
-        std::vector<std::string> getAspectSlots() const override {return {"terrain"};};
         std::vector<std::string> getStatSlots() const override {return {"gravity"};};
     };
 

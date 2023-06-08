@@ -1,6 +1,7 @@
 #include "dbatk/Database.h"
 #include "fmt/format.h"
 #include "kaizermud/utils.h"
+#include "dbatk/Components.h"
 
 namespace dbat {
     std::vector<std::string> extendSchema = {
@@ -72,5 +73,47 @@ namespace dbat {
             "   name TEXT"
             ");"
     };
+
+    void serializeEntity(entt::entity ent, nlohmann::json& j, bool asPrototype) {
+        auto room = kaizer::registry.try_get<dbat::components::Room>(ent);
+        if(room) {
+            nlohmann::json r;
+            r["terrain"] = room->terrain;
+            j["Room"] = r;
+        }
+
+        auto character = kaizer::registry.try_get<dbat::components::Character>(ent);
+        if(character) {
+            nlohmann::json c;
+            c["race"] = character->race;
+            c["sensei"] = character->sensei;
+            c["position"] = character->position;
+            c["sex"] = character->sex;
+            j["Character"] = c;
+        }
+
+    }
+
+    void deserializeEntity(entt::entity ent, const nlohmann::json& j) {
+        if(j.count("Character")) {
+            auto &character = kaizer::registry.get_or_emplace<dbat::components::Character>(ent);
+            auto c = j["Character"];
+            if(c.contains("race")) character.race = c["race"];
+            if(c.contains("sensei")) character.sensei = c["sensei"];
+            if(c.contains("position")) character.position = c["position"];
+            if(c.contains("sex")) character.sex = c["sex"];
+        }
+
+        if(j.count("Room")) {
+            auto &room = kaizer::registry.get_or_emplace<dbat::components::Room>(ent);
+            auto r = j["Room"];
+            if(r.contains("terrain")) room.terrain = r["terrain"];
+        }
+    }
+
+    void registerDBFuncs() {
+        kaizer::serializeFuncs.push_back(serializeEntity);
+        kaizer::deserializeFuncs.push_back(deserializeEntity);
+    }
 
 }
