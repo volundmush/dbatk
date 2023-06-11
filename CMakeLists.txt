@@ -12,17 +12,19 @@ include(${CPM_DOWNLOAD_LOCATION})
 
 project(dbatk)
 
-find_package(SQLite3 REQUIRED)
-find_package(Boost REQUIRED COMPONENTS system program_options json)
+CPMAddPackage("gh:SRombauts/SQLiteCpp#3.3.0")
+CPMAddPackage("gh:fmtlib/fmt#9.1.0")
+CPMAddPackage("gh:robinlinden/libsodium-cmake#master")
 
-add_subdirectory(../kaizermud kaizermud_build)
+find_package(SQLite3 REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system program_options regex)
+
+add_subdirectory(../CoreMUD coremud_build)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-
-set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 
 file(GLOB_RECURSE DBATK_INCLUDE include/*.h)
@@ -30,16 +32,20 @@ file(GLOB_RECURSE DBATK_SRC src/*.cpp)
 
 SET(DBATK_INCLUDE_DIRS
         include
-        ${kaizermud_SOURCE_DIR}/include
+        ${coremud_SOURCE_DIR}/include
         ${SQLiteCpp_SOURCE_DIR}/include
         ${boost_SOURCE_DIR}
+        ${sodium_SOURCE_DIR}/libsodium/src/libsodium/include
+        ${FMT_SOURCE_DIR}/include
 )
 
 set(DBATK_LINK_LIBRARIES
         ${SQLite3_LIBRARIES}
         SQLiteCpp
         ${Boost_LIBRARIES}
-        kaizermud
+        coremud
+        sodium
+        fmt::fmt
 )
 
 # this is the core library we're making.
@@ -52,4 +58,3 @@ add_executable(dbat apps/dbat.cpp)
 target_link_libraries(dbat dbatk ${DBATK_LINK_LIBRARIES})
 target_include_directories(dbat PUBLIC ${DBATK_INCLUDE_DIRS})
 
-SET(dbatk_link ${CMAKE_INSTALL_PREFIX}/bin/)
