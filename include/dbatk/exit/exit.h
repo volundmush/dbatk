@@ -4,9 +4,10 @@
 
 namespace dbat {
 
+    using Destination = std::variant<RoomID, GridPoint, SectorPoint>;
 
     struct Exit {
-        Exit(Room* room, RoomID destination, std::optional<ObjectID> objectID = std::nullopt) :
+        Exit(Room* room, Destination destination, std::optional<ObjectID> objectID = std::nullopt) :
                 room(room), destination(destination), objectID(objectID) {};
         Exit(Room* room, const nlohmann::json& j);
         std::string_view keyword, description;
@@ -15,10 +16,11 @@ namespace dbat {
         // Exits which have an objectID are pointed at a room inside a different object.
         // If this holds no value, then the destination is 'local' to this object.
         std::optional<ObjectID> objectID;
-        RoomID destination;
+        Destination destination;
         // I'm not actually sure what these do yet, just copying them from the original.
         int dclock{0};
         int dchide{0};
+        std::optional<std::size_t> legacyKey;
         Room* getDestination();
         Room* room;
         void setExitFlag(std::size_t flag, bool value);

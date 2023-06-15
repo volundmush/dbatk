@@ -12,9 +12,10 @@ include(${CPM_DOWNLOAD_LOCATION})
 
 project(dbatk)
 
-CPMAddPackage("gh:SRombauts/SQLiteCpp#3.3.0")
 CPMAddPackage("gh:fmtlib/fmt#9.1.0")
 CPMAddPackage("gh:robinlinden/libsodium-cmake#master")
+CPMAddPackage("gh:SRombauts/SQLiteCpp#3.3.0")
+CPMAddPackage("gh:skypjack/entt#v3.11.1")
 
 find_package(SQLite3 REQUIRED)
 find_package(Boost REQUIRED COMPONENTS system program_options regex)
@@ -37,6 +38,7 @@ SET(DBATK_INCLUDE_DIRS
         ${boost_SOURCE_DIR}
         ${sodium_SOURCE_DIR}/libsodium/src/libsodium/include
         ${FMT_SOURCE_DIR}/include
+        ${entt_SOURCE_DIR}/single_include
 )
 
 set(DBATK_LINK_LIBRARIES
@@ -57,4 +59,8 @@ target_include_directories(dbatk PUBLIC ${DBATK_INCLUDE_DIRS})
 add_executable(dbat apps/dbat.cpp)
 target_link_libraries(dbat dbatk ${DBATK_LINK_LIBRARIES})
 target_include_directories(dbat PUBLIC ${DBATK_INCLUDE_DIRS})
+
+add_executable(dbimport apps/dbimport.cpp)
+target_link_libraries(dbimport dbatk ${DBATK_LINK_LIBRARIES})
+target_include_directories(dbimport PUBLIC ${DBATK_INCLUDE_DIRS})
 

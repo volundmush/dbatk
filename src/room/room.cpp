@@ -3,10 +3,6 @@
 
 namespace dbat {
 
-
-
-
-
     void Room::setRoomFlag(std::size_t flag, bool value) {
         // Error out if flag > NUM_ROOM_FLAGS
         if(flag > flags.size() - 1) return;
@@ -36,7 +32,6 @@ namespace dbat {
     terrain::Terrain* Room::getTerrain() const {
         return terrain::terrainRegistry[terrainId].get();
     }
-
 
 
     nlohmann::json Room::serialize() {

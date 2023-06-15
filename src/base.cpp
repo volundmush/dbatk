@@ -3,6 +3,17 @@
 
 namespace dbat {
 
+    bool gameIsLoading{true};
+
+    void setDirty(const std::shared_ptr<Object>& obj, bool override) {
+        setDirty(obj->getID(), override);
+    }
+    void setDirty(const ObjectID& id, bool override) {
+        if(!gameIsLoading || override) {
+            dirty.insert(id);
+        }
+    }
+
     std::string ObjectID::toString() const {
         return fmt::format("#{}:{}", index, generation);
     }

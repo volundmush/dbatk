@@ -76,7 +76,12 @@ namespace dbat::rflags {
             makeRoomFlag(RFlag::FERTILE2, "FERTILE2"),
             makeRoomFlag(RFlag::FISHING, "FISHING"),
             makeRoomFlag(RFlag::FISHFRESH, "FISHFRESH"),
-            makeRoomFlag(RFlag::CANREMODEL, "CANREMODEL")
+            makeRoomFlag(RFlag::CANREMODEL, "CANREMODEL"),
+            makeRoomFlag(RFlag::CONTROLS, "CONTROLS"),
+            makeRoomFlag(RFlag::WINDOW, "WINDOW"),
+            makeRoomFlag(RFlag::HATCH, "HATCH"),
+            makeRoomFlag(RFlag::DOCK, "DOCK"),
+            makeRoomFlag(RFlag::LANDING, "LANDING"),
     };
 
 }

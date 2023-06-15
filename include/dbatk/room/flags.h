@@ -69,10 +69,15 @@ namespace dbat::rflags {
         FERTILE2 = 62,
         FISHING = 63,
         FISHFRESH = 64,
-        CANREMODEL = 65
+        CANREMODEL = 65,
+        CONTROLS = 66,
+        WINDOW = 67,
+        HATCH = 68,
+        DOCK = 69,
+        LANDING = 70,
     };
 
-    constexpr std::size_t NUM_ROOM_FLAGS = 66;
+    constexpr std::size_t NUM_ROOM_FLAGS = 71;
 
 
     class RoomFlag : public BaseFlag {

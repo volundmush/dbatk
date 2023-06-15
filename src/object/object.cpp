@@ -5,6 +5,77 @@
 
 namespace dbat {
 
+    void Object::setMaterial(std::size_t id) {
+        if(id <= mat::NUM_MATERIALS < 1)
+            materialId = static_cast<mat::MaterialID>(id);
+    }
+
+    mat::MaterialID Object::getMaterialID() {
+        return materialId;
+    }
+
+    RoomID Object::getNextRoomID() const {
+        auto groom = checkObjFlag(oflags::GLOBALROOMS);
+        for(std::size_t i = 0; true; i++) {
+            if(rooms && rooms->contains(i)) continue;
+            if(groom && legacyRooms.contains(i)) continue;
+            return i;
+        }
+    }
+
+    OpResult<Room*> Object::createRoom(std::optional<RoomID> id, std::optional<nlohmann::json> jdata) {
+        auto groom = checkObjFlag(oflags::GLOBALROOMS);
+        if(!id) {
+            id = getNextRoomID();
+        } else {
+            if(rooms && rooms->contains(id.value())) {
+                return {nullptr, "Room already exists."};
+            }
+            if(groom && legacyRooms.contains(id.value())) {
+                return {nullptr, "Room already exists."};
+            }
+        }
+        if(!rooms) {
+            rooms = std::make_unique<std::unordered_map<RoomID, std::shared_ptr<Room>>>();
+        }
+
+        auto room = jdata.has_value() ? std::make_shared<Room>(id.value(), this, jdata.value()) : std::make_shared<Room>(id.value(), this);
+        rooms->emplace(id.value(), room);
+        if(groom) {
+            legacyRooms.emplace(id.value(), room.get());
+        }
+    }
+
+    double Object::getStatBase(const std::string &stat) {
+        auto find = findStat(stat);
+        if(find) {
+            return getStatBase(find.value());
+        }
+        return 0.0;
+    }
+
+    double Object::getStat(const std::string &stat) {
+        auto find = findStat(stat);
+        if(find) {
+            return getStat(find.value());
+        }
+        return 0.0;
+    }
+
+    void Object::setStat(const std::string &stat, double value) {
+        auto find = findStat(stat);
+        if(find) {
+            setStat(find.value(), value);
+        }
+    }
+
+    void Object::modStat(const std::string &stat, double value) {
+        auto find = findStat(stat);
+        if(find) {
+            modStat(find.value(), value);
+        }
+    }
+
     size::SizeID Object::getSizeID() const {
         return sizeId.value_or(size::MEDIUM);
     }
@@ -26,15 +97,17 @@ namespace dbat {
     void Object::setObjFlag(std::size_t flag, bool value) {
         // Error out if flag > NUM_EXIT_FLAGS
         if(flag > objFlags.size() - 1) return;
+        auto self = shared_from_this();
         if(value) {
             if(objFlags.test(flag)) return;
             objFlags.set(flag);
-            oflags::objectFlags[flag]->onSet(shared_from_this());
+            oflags::objectFlags[flag]->onSet(self);
         } else {
             if(!objFlags.test(flag)) return;
             objFlags.reset(flag);
-            oflags::objectFlags[flag]->onClear(shared_from_this());
+            oflags::objectFlags[flag]->onClear(self);
         }
+        setDirty(self);
     }
 
     bool Object::checkObjFlag(std::size_t flag) const {
@@ -43,9 +116,17 @@ namespace dbat {
         return objFlags.test(flag);
     }
 
+    void Object::setAdmFlag(std::size_t flag, bool value) {
+        return;
+    }
+
+    bool Object::checkAdmFlag(std::size_t flag) const {
+        return false;
+    }
+
     OpResult<> Object::setLocation(const std::shared_ptr<Object>& newLocation) {
         auto self = shared_from_this();
-        if(newLocation) {
+        if(newLocation && !gameIsLoading) {
             // Check for a circular relationship and error out if found...
             auto cur = newLocation;
             while(cur) {
@@ -65,6 +146,7 @@ namespace dbat {
         } else {
             location.reset();
         }
+        setDirty(self);
         return {true, std::nullopt};
     }
 
@@ -78,7 +160,7 @@ namespace dbat {
 
     OpResult<> Object::setParent(const std::shared_ptr<Object>& newParent) {
         auto self = shared_from_this();
-        if(newParent) {
+        if(newParent && !gameIsLoading) {
             // Check for a circular relationship and error out if found...
             auto cur = newParent;
             while(cur) {
@@ -97,6 +179,7 @@ namespace dbat {
         } else {
             parent.reset();
         }
+        setDirty(self);
         return {true, std::nullopt};
     }
 
@@ -118,7 +201,7 @@ namespace dbat {
 
     OpResult<> Object::setOwner(const std::shared_ptr<Object> &newOwner) {
         auto self = shared_from_this();
-        if(newOwner) {
+        if(newOwner && !gameIsLoading) {
             // Check for a circular relationship and error out if found...
             auto cur = newOwner;
             while(cur) {
@@ -137,6 +220,7 @@ namespace dbat {
         } else {
             owner.reset();
         }
+        setDirty(self);
         return {true, std::nullopt};
     }
 
@@ -196,6 +280,7 @@ namespace dbat {
         for(auto &c : temp) {
             c->atOwnerDeleted(self);
         }
+        setDirty(self);
 
     }
 
@@ -275,9 +360,9 @@ namespace dbat {
         }
 
         if(j.contains("rooms")) {
-            rooms = std::make_unique<std::unordered_map<RoomID, std::shared_ptr<Room>>>();
             for(const auto &r : j["rooms"]) {
-                rooms->emplace(r[0], std::make_shared<Room>(r[0], this, r[1]));
+                auto [ro, err] = createRoom(r[0], r[1]);
+                // TODO: handle errors here. errors would be really bad here.
             }
         }
     }

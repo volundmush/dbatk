@@ -30,7 +30,7 @@ namespace dbat {
     void Exit::deserialize(const nlohmann::json &j) {
         if(j.contains("destination")) destination = j["destination"];
         if(j.contains("flags"))
-            for(auto i : j["flags"]) {
+            for(const auto& i : j["flags"]) {
                 setExitFlag(i, true);
             }
         if(j.contains("objectID")) objectID.emplace(j["objectID"]);

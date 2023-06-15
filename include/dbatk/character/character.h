@@ -4,6 +4,7 @@
 #include "dbatk/character/sensei.h"
 #include "dbatk/character/position.h"
 #include "dbatk/character/sex.h"
+#include "dbatk/character/stat.h"
 
 namespace dbat {
     class Character : public Object {
@@ -22,10 +23,12 @@ namespace dbat {
         [[nodiscard]] sensei::SenseiID getSenseiID() const;
         [[nodiscard]] sensei::Sensei* getSensei() const;
         [[nodiscard]] virtual bool isNPC() const = 0;
+        [[nodiscard]] std::array<double, cstat::NUM_CHAR_STATS>& getCstats();
     protected:
         race::RaceID raceId{};
         sensei::SenseiID senseiId{};
         position::PositionID positionId{};
+        std::array<double, cstat::NUM_CHAR_STATS> cstats;
 
     };
 }
