@@ -63,4 +63,3 @@ target_include_directories(dbat PUBLIC ${DBATK_INCLUDE_DIRS})
 add_executable(dbimport apps/dbimport.cpp)
 target_link_libraries(dbimport dbatk ${DBATK_LINK_LIBRARIES})
 target_include_directories(dbimport PUBLIC ${DBATK_INCLUDE_DIRS})
-

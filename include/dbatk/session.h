@@ -9,6 +9,6 @@ namespace dbat {
         void sendLine(const std::string& txt);
     protected:
         std::unordered_map<int64_t, std::shared_ptr<DBATConnection>> connections;
-        std::shared_ptr<Player> player;
+        entt::entity player;
     };
 }

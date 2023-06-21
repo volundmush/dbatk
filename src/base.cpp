@@ -1,60 +1,78 @@
 #include "dbatk/base.h"
-#include "dbatk/room/room.h"
+#include "dbatk/components.h"
+#include "sodium.h"
 
 namespace dbat {
 
+    entt::registry registry;
+
     bool gameIsLoading{true};
 
-    void setDirty(const std::shared_ptr<Object>& obj, bool override) {
-        setDirty(obj->getID(), override);
-    }
-    void setDirty(const ObjectID& id, bool override) {
-        if(!gameIsLoading || override) {
-            dirty.insert(id);
-        }
+    entt::entity createObject() {
+        auto id = createObjectId();
+        auto obj = registry.create();
+        if(id.index >= objects.size())
+            objects.resize(id.index + 40);
+        objects[id.index] = std::make_pair(id.generation, obj);
+        registry.emplace<ObjectId>(obj, id);
+        return obj;
     }
 
-    std::string ObjectID::toString() const {
+    void setDirty(entt::entity ent, bool override) {
+        if(!registry.valid(ent)) return;
+        auto objid = registry.try_get<ObjectId>(ent);
+        if(!objid) {
+            return;
+        }
+        setDirty(*objid, override);
+    }
+
+    void setDirty(const ObjectId& id, bool override) {
+        if(gameIsLoading && !override) return;
+        dirty.insert(id);
+    }
+
+    std::string ObjectId::toString() const {
         return fmt::format("#{}:{}", index, generation);
     }
 
-    std::shared_ptr<Object> getObject(std::size_t index, int64_t generation) {
+    entt::entity getObject(std::size_t index, int64_t generation) {
         if (index >= objects.size()) {
-            return nullptr;
+            return entt::null;
         }
         auto& obj = objects[index];
         if (obj.first != generation) {
-            return nullptr;
+            return entt::null;
         }
         return obj.second;
     }
 
-    std::shared_ptr<Object> getObject(std::size_t index) {
+    entt::entity getObject(std::size_t index) {
         if (index >= objects.size()) {
-            return nullptr;
+            return entt::null;
         }
         auto& obj = objects[index];
-        if (!obj.second) {
-            return nullptr;
+        if (!registry.valid(obj.second)) {
+            return entt::null;
         }
         return obj.second;
     }
 
-    std::shared_ptr<Object> ObjectID::getObject() const {
+    entt::entity ObjectId::getObject() const {
         return dbat::getObject(index, generation);
     }
 
-    std::vector<std::pair<int64_t, std::shared_ptr<Object>>> objects;
+    std::vector<std::pair<int64_t, entt::entity>> objects;
 
-    std::size_t getFreeObjectID() {
+    std::size_t getFreeObjectId() {
         std::size_t i = 0;
         for (; i < objects.size(); i++) {
-            if (!objects[i].second) {
+            if (!registry.valid(objects[i].second)) {
                 return i;
             }
         }
         // We couldn't find any, so let's resize the vector to hold some more...
-        objects.resize(i + 40);
+        objects.resize(i + 40, {0, entt::null});
         return i;
     }
 
@@ -65,8 +83,8 @@ namespace dbat {
         ).count();
     }
 
-    ObjectID createObjectID() {
-        return {getFreeObjectID(), getUnixTimestamp()};
+    ObjectId createObjectId() {
+        return {getFreeObjectId(), getUnixTimestamp()};
     }
 
     std::unordered_set<std::string> stringPool;
@@ -83,6 +101,70 @@ namespace dbat {
     std::random_device randomDevice;
     std::default_random_engine randomEngine(randomDevice());
 
-    std::unordered_map<RoomID, Room*> legacyRooms;
+    std::unordered_set<ObjectId> dirty;
+    std::unordered_map<RoomId, entt::entity> legacyRooms;
+    std::unordered_map<RoomId, GridPoint> legacySpaceRooms;
 
+    GridPoint::GridPoint(const nlohmann::json& j) {
+        x = j[0];
+        y = j[1];
+        z = j[2];
+    }
+
+    nlohmann::json GridPoint::serialize() const {
+        nlohmann::json j;
+        j[0] = x;
+        j[1] = y;
+        j[2] = z;
+        return j;
+    }
+
+    SectorPoint::SectorPoint(const nlohmann::json& j) {
+        x = j[0];
+        y = j[1];
+        z = j[2];
+    }
+
+    nlohmann::json SectorPoint::serialize() const {
+        nlohmann::json j;
+        j[0] = x;
+        j[1] = y;
+        j[2] = z;
+        return j;
+    }
+
+    OpResult<> hashPassword(std::string_view password) {
+        char hashed_password[crypto_pwhash_STRBYTES];
+
+        if(password.empty()) {
+            return {false, "Password cannot be empty"};
+        }
+
+        if(crypto_pwhash_str(hashed_password, password.data(), password.size(),
+                             crypto_pwhash_OPSLIMIT_INTERACTIVE, crypto_pwhash_MEMLIMIT_INTERACTIVE) != 0) {
+            return {false, "Failed to hash password"};
+        }
+
+        return {true, std::string(hashed_password)};
+
+    }
+
+    OpResult<> checkPassword(std::string_view hash, std::string_view check) {
+        if(crypto_pwhash_str_verify(hash.data(), check.data(), check.size()) != 0) {
+            return {false, "Passwords do not match"};
+        }
+        return {true, std::nullopt};
+    }
+
+}
+
+namespace nlohmann {
+    void to_json(json& j, const dbat::ObjectId& o) {
+        j = json{o.index, o.generation};
+    }
+
+    void from_json(const json& j, dbat::ObjectId& o) {
+        j.at(0).get_to(o.index);
+        j.at(1).get_to(o.generation);
+    }
 }

@@ -10,13 +10,16 @@ namespace dbat {
 
     class DgScriptPrototype {
     public:
-        std::size_t id;
+        DgScriptPrototype() = default;
+        explicit DgScriptPrototype(const nlohmann::json& j);
+        std::size_t id{};
         std::string name;
-        uint8_t scriptType;
+        uint8_t scriptType{};
         std::bitset<32> triggerType;
         std::vector<std::string> lines;
         std::string arglist;
         std::set<std::shared_ptr<DgScript>> instances;
+        nlohmann::json serialize();
     };
 
     enum class DgState : uint8_t {
@@ -36,8 +39,8 @@ namespace dbat {
 
     class DgScript {
     public:
-        DgScript(DgScriptHandler *handler, const std::shared_ptr<DgScriptPrototype>& prototype);
-        DgScriptHandler *handler;
+        DgScript(entt::entity ent, const std::shared_ptr<DgScriptPrototype>& prototype);
+        entt::entity ent;
         std::shared_ptr<DgScriptPrototype> prototype;
         double waiting{0.0};
         DgState state{DgState::DORMANT};
@@ -48,13 +51,13 @@ namespace dbat {
 
     class DgScriptHandler {
     public:
-        explicit DgScriptHandler(const std::shared_ptr<Object>& obj);
-        std::shared_ptr<Object> obj;
+        explicit DgScriptHandler(entt::entity ent);
+        entt::entity ent;
         std::vector<std::shared_ptr<DgScript>> scripts{};
     };
 
-    extern std::map<std::size_t, std::shared_ptr<DgScriptPrototype>> dgScripts;
+    extern std::unordered_map<std::size_t, std::shared_ptr<DgScriptPrototype>> dgScripts;
 
-    extern std::set<std::shared_ptr<DgScript>> dgScriptsWaiting;
+    struct DgScriptsWaiting {};
 
 }

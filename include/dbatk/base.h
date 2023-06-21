@@ -8,6 +8,7 @@
 #include <boost/algorithm/string.hpp>
 #include "SQLiteCpp/SQLiteCpp.h"
 #include "entt/entt.hpp"
+#include <variant>
 
 namespace dbat {
     using namespace core;
@@ -16,79 +17,46 @@ namespace dbat {
 
     class Session;
 
-    // The Object class is Abstract.... not meant to be used directly.
-    class Object;
-
-    // The Character class is Abstract, not meant to be used directly.
-    class Character;
-
-    // Class for all Player Characters.
-    class Player;
-
-    // Class for all Non-Player Characters.
-    class NPC;
-
-    // Class for all Areas. An Area is basically just a collection of Rooms, with the Area itself possibly having no
-    // having no physical location. Areas are just containers for Rooms, which might or might not have another
-    // object as their parent for a map hierarchy.
-    class Area;
-
-    // Class for all Items. Items are objects that can be picked up and moved around and sometimes equipped.
-    // They might also be furniture, trees, or other fixtures in a room..
-    class Item;
-
-    // A Celestial Body is something like a planet, asteroid, or star - some kind of (probably?) natural physical object
-    // likely to be found in a space sector. A common design pattern for creating worlds would be to have
-    // numerous Areas within a CelestialBody - a "planet which contains different regions".
-    class CelestialBody;
-
-    // A car, hovercycle, spaceship, maybe some kind of boat of a warmech? Is it a Gundam? it's a Gundam, isn't it?
-    class Vehicle;
-
-    // A Dimension is a logical container for other objects which serves as a kind of boundary for certain powers, abilities,
-    // or possibly transit. A Dimension might be a pocket dimension, a plane of existence, or a universe.
-    class Dimension;
-
-    // A sector is a 3D space which contains celestial bodies and other objects. It's meant to make use of a 3D grid
-    // A similar concept is found in games like the X series, or EVE Online - sectors linked by jumpgates.
-    class Sector;
-
-    // A Grid is the integer-based equivalent of a sector, where it presents a map of tiles characters can move across.
-    // This could be useful for overworld maps and the like.
-    class Grid;
-
-    struct Room;
-    struct Exit;
+    extern entt::registry registry;
 
     using GridLength = int64_t;
 
     struct GridPoint {
+        GridPoint() = default;
+        GridPoint(GridLength x, GridLength y, GridLength z) : x(x), y(y), z(z) {};
+        explicit GridPoint(const nlohmann::json& j);
         GridLength x, y, z;
         bool operator==(const GridPoint& other) const {
             return x == other.x && y == other.y && z == other.z;
         }
+        nlohmann::json serialize() const;
     };
 
     using SectorLength = double;
     struct SectorPoint {
+        SectorPoint() = default;
+        SectorPoint(SectorLength x, SectorLength y, SectorLength z) : x(x), y(y), z(z) {};
+        explicit SectorPoint(const nlohmann::json& j);
         SectorLength x, y, z;
         bool operator==(const SectorPoint& other) const {
             return x == other.x && y == other.y && z == other.z;
         }
+        nlohmann::json serialize() const;
     };
 
-    struct ObjectID {
-        ObjectID(std::size_t index, int64_t generation) : index(index), generation(generation) {};
+    struct ObjectId {
+        ObjectId() = default;
+        ObjectId(std::size_t index, int64_t generation) : index(index), generation(generation) {};
 
-        explicit ObjectID(const nlohmann::json &json) : index(json[0]), generation(json[1]) {};
+        explicit ObjectId(const nlohmann::json &json) : index(json[0]), generation(json[1]) {};
         std::size_t index;
         int64_t generation;
 
         [[nodiscard]] std::string toString() const;
 
-        [[nodiscard]] std::shared_ptr<Object> getObject() const;
+        [[nodiscard]] entt::entity getObject() const;
 
-        bool operator==(const ObjectID &other) const {
+        bool operator==(const ObjectId &other) const {
             return index == other.index && generation == other.generation;
         }
     };
@@ -97,8 +65,8 @@ namespace dbat {
 
 namespace std {
     template <>
-    struct hash<dbat::ObjectID> {
-        std::size_t operator()(const dbat::ObjectID& id) const {
+    struct hash<dbat::ObjectId> {
+        std::size_t operator()(const dbat::ObjectId& id) const {
             return std::hash<std::size_t>()(id.index) ^ std::hash<int64_t>()(id.generation);
         }
     };
@@ -122,46 +90,38 @@ namespace std {
 namespace dbat {
 
     // Any object which needs to be updated in the database - it was created, modified, or deleted,
-    // its ObjectID must be in the dirty set by the time the syncer runs.
-    std::unordered_set<ObjectID> dirty;
+    // its ObjectId must be in the dirty set by the time the syncer runs.
+    extern std::unordered_set<ObjectId> dirty;
 
     // If this is set, many operations which would set the dirty flag will not.
     // Other safeguards of the Object API may also be released. Do remember to
     // set it to false after the game is done loading.
     extern bool gameIsLoading;
 
-    void setDirty(const std::shared_ptr<Object>& obj, bool override = false);
-    void setDirty(const ObjectID& id, bool override = false);
+    void setDirty(entt::entity, bool override = false);
+    void setDirty(const ObjectId& id, bool override = false);
 
-    std::shared_ptr<Object> getObject(std::size_t index, int64_t generation);
-    std::shared_ptr<Object> getObject(std::size_t index);
+    entt::entity getObject(std::size_t index, int64_t generation);
+    entt::entity getObject(std::size_t index);
 
-    using RoomID = std::size_t;
+    using RoomId = std::size_t;
 
     // The objects vector serves as a generational arena for all objects in the game.
     // The first element of the pair is the generation (as a unix timestamp in seconds),
     // the second is the object itself.
     // A grave is an object with a generation of 0 and an empty pointer.
     // We COULD get away with just using a vector of shared_ptrs, but this way we can
-    // use the ObjectID for serialization and not have to worry about the object being
+    // use the ObjectId for serialization and not have to worry about the object being
     // deleted and the ID being reused.
-    extern std::vector<std::pair<int64_t, std::shared_ptr<Object>>> objects;
+    extern std::vector<std::pair<int64_t, entt::entity>> objects;
 
-    std::size_t getFreeObjectID();
+    std::size_t getFreeObjectId();
 
     int64_t getUnixTimestamp();
 
-    ObjectID createObjectID();
+    ObjectId createObjectId();
 
-    template<typename T>
-    std::shared_ptr<T> createObject() {
-        auto id = createObjectID();
-        auto obj = std::make_shared<T>(id);
-        if(id.index >= objects.size())
-            objects.resize(id.index + 40);
-        objects[id.index] = std::make_pair(id.generation, obj);
-        return obj;
-    }
+    entt::entity createObject();
 
     extern std::unordered_set<std::string> stringPool;
 
@@ -174,7 +134,8 @@ namespace dbat {
     // For backwards compatability with the old DBAT code, we have this map which effectively replicates
     // the old 'world' variable. It is filled with the rooms from Objects that are marked GLOBALROOM.
     // Beware of ID collisions when setting objects GLOBALROOM.
-    extern std::unordered_map<RoomID, Room*> legacyRooms;
+    extern std::unordered_map<RoomId, entt::entity> legacyRooms;
+    extern std::unordered_map<RoomId, GridPoint> legacySpaceRooms;
 
     template <typename Iterator, typename Key = std::function<std::string(typename std::iterator_traits<Iterator>::value_type)>>
     Iterator partialMatch(
@@ -205,16 +166,15 @@ namespace dbat {
         return end;
     }
 
+    OpResult<> hashPassword(std::string_view password);
+
+    OpResult<> checkPassword(std::string_view hash, std::string_view check);
+
 
 }
 
 namespace nlohmann {
-    void to_json(json& j, const dbat::ObjectID& o) {
-        j = json{o.index, o.generation};
-    }
+    void to_json(json& j, const dbat::ObjectId& o);
 
-    void from_json(const json& j, dbat::ObjectID& o) {
-        j.at(0).get_to(o.index);
-        j.at(1).get_to(o.generation);
-    }
+    void from_json(const json& j, dbat::ObjectId& o);
 }

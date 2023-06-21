@@ -2,5 +2,7 @@
 #include "dbatk/base.h"
 
 namespace dbat::conf {
-    extern RoomID startingRoom;
+    extern RoomId startingRoom;
+    extern int64_t legacySpaceId;
+    extern std::string dbName;
 }
