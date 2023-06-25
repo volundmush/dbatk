@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dbatk/base.h"
+#include "core/components.h"
 #include "dbatk/aspects/admFlags.h"
 #include "dbatk/aspects/affect.h"
 #include "dbatk/aspects/celFlags.h"
@@ -28,42 +29,6 @@
 
 
 namespace dbat {
-
-    struct StringView {
-        StringView() = default;
-        explicit StringView(const std::string& txt) { setData(txt); };
-        std::string_view data;
-        std::string_view clean;
-        void setData(const std::string& txt);
-    };
-
-    struct Name : StringView {
-        using StringView::StringView;
-    };
-    struct ShortDescription : StringView {
-        using StringView::StringView;
-    };
-    struct RoomDescription : StringView {
-        using StringView::StringView;
-    };
-    struct LookDescription : StringView {
-        using StringView::StringView;
-    };
-
-    struct Entity {
-        entt::entity data;
-    };
-
-    struct ReverseEntity {
-        std::vector<entt::entity> data{};
-    };
-
-    struct Location : Entity {};
-    struct Contents : ReverseEntity {};
-    struct Parent : Entity {};
-    struct Children : ReverseEntity {};
-    struct Owner : Entity {};
-    struct Assets : ReverseEntity {};
 
     struct Race {
         race::RaceId data{race::FORMLESS};
@@ -93,21 +58,6 @@ namespace dbat {
         std::bitset<oflags::numObjFlags> data;
     };
 
-    struct SessionHolder {
-        entt::entity session;
-        uint8_t sessionMode{0};
-    };
-
-    using DestinationType = std::variant<RoomId, GridPoint, SectorPoint>;
-    struct Destination {
-        Destination() = default;
-        explicit Destination(const nlohmann::json& j);
-        // if ent is entt::null, then it's assumed to be a destination on the same Object.
-        entt::entity ent{entt::null};
-        DestinationType destination;
-        nlohmann::json serialize();
-    };
-
     struct Exits {
         std::unordered_map<dir::DirectionId, Destination> data{};
     };
@@ -127,42 +77,8 @@ namespace dbat {
         std::unordered_map<dir::DirectionId, Door> data{};
     };
 
-    struct Rooms {
-        std::unordered_map<RoomId, entt::entity> data{};
-    };
-
     struct RoomFlags {
         std::bitset<rflags::numRoomFlags> data;
-    };
-
-    struct GridBounds {
-        std::optional<GridLength> minX, maxX, minY, maxY, minZ, maxZ;
-    };
-
-    struct GridContents {
-        std::unordered_map<GridPoint, std::vector<entt::entity>> data{};
-    };
-
-    struct GridPointsOfInterest {
-        std::unordered_map<GridPoint, entt::entity> data{};
-    };
-
-    struct GridLocation {
-        GridLocation() = default;
-        explicit GridLocation(const GridPoint& d) : data(d) {};
-        explicit GridLocation(const nlohmann::json& j) : data(j) {};
-        GridPoint data;
-    };
-
-    struct SectorLocation {
-        SectorLocation() = default;
-        explicit SectorLocation(const SectorPoint& d) : data(d) {};
-        explicit SectorLocation(const nlohmann::json& j) : data(j) {};
-        SectorPoint data;
-    };
-
-    struct RoomLocation {
-        RoomId id;
     };
 
     struct Size {
@@ -239,6 +155,10 @@ namespace dbat {
         std::bitset<affect::countAffectFlags> data;
     };
 
+    struct CharacterStats {
+        std::array<double, cstat::numCharStats> data;
+    };
+
     struct NPCFlags {
         std::bitset<nflags::numNpcFlags> data;
     };
@@ -246,30 +166,6 @@ namespace dbat {
     struct PlayerFlags {
         //std::bitset<pflags::NUM_PLAYER_FLAGS> data;
     };
-
-    struct Item {
-        std::optional<std::size_t> vnum;
-    };
-    struct Character {
-        std::array<double, cstat::numCharStats> stats{};
-    };
-    struct NPC {
-        std::optional<std::size_t> vnum;
-    };
-
-    struct Player {
-        int64_t accountId{-1};
-    };
-
-    struct Room {
-        ObjectId obj;
-        RoomId id;
-    };
-
-    struct Dimension {};
-    struct Expanse {};
-    struct Area {};
-    struct Vehicle {};
 
     struct CelestialBody {
         celtype::CelestialTypeId type{celtype::PLANET};
@@ -311,6 +207,16 @@ namespace dbat {
 
     struct Skills {
         std::unordered_map<skill::SkillId, skill_data> data{};
+    };
+
+    struct Dimension {};
+
+    struct ItemVnum {
+        std::size_t data{0};
+    };
+
+    struct NPCVnum {
+        std::size_t data{0};
     };
 
 

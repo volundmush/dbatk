@@ -1,5 +1,6 @@
 #pragma once
-#include "dbatk/aspects/stat.h"
+#include "dbatk/base.h"
+#include "core/stat.h"
 
 namespace dbat::cstat {
 

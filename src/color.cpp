@@ -167,7 +167,7 @@ static char RANDOM_COLORS[] = "bgcrmywBGCRMWY";
 
 namespace dbat {
 
-    std::string renderAnsiColor(std::string_view input, ColorType color) {
+    std::string circleRenderAnsi(std::string_view input, ColorType color) {
         char *dest_char, *source_char, *color_char, *save_pos, *replacement = nullptr;
         int i, temp_color;
         size_t wanted;
@@ -266,12 +266,6 @@ namespace dbat {
         } /* for loop */
 
         return out;
-    }
-
-    std::function<std::string(std::string_view, ColorType)> renderAnsi(renderAnsiColor);
-
-    std::string stripAnsi(std::string_view input) {
-        return renderAnsi(input, ColorType::NoColor);
     }
 
 }

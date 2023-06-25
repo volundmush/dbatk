@@ -23,8 +23,8 @@ namespace dbat::cstat {
         // if ID is within the NUM_CHAR_STATS range, get base from CharacterComponent, else return 0.0.
         auto id = getId();
         if (id < numCharStats) {
-            auto &c = registry.get_or_emplace<Character>(ent);
-            return c.stats[id];
+            auto &c = registry.get_or_emplace<CharacterStats>(ent);
+            return c.data[id];
         } else {
             return 0.0;
         }
@@ -33,8 +33,8 @@ namespace dbat::cstat {
     void BaseCharacterStat::doSetBase(entt::entity ent, double value) {
         auto id = getId();
         if (id < numCharStats) {
-            auto &c = registry.get_or_emplace<Character>(ent);
-            c.stats[id] = value;
+            auto &c = registry.get_or_emplace<CharacterStats>(ent);
+            c.data[id] = value;
         }
     }
 

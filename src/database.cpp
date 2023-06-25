@@ -1,52 +1,13 @@
 #include "dbatk/database.h"
 #include "dbatk/components.h"
-#include "dbatk/api.h"
 #include "dbatk/conf.h"
 #include "dbatk/zone.h"
 #include "dbatk/dgscript.h"
+#include "core/link.h"
 
 namespace dbat {
 
-    nlohmann::json serializeEntity(entt::entity ent, bool asPrototype) {
-        nlohmann::json j;
-
-        auto name = registry.try_get<Name>(ent);
-        if (name) {
-            j["Name"] = name->data;
-        }
-
-        auto shortDescription = registry.try_get<ShortDescription>(ent);
-        if (shortDescription) {
-            j["ShortDescription"] = shortDescription->data;
-        }
-
-        auto roomDescription = registry.try_get<RoomDescription>(ent);
-        if (roomDescription) {
-            j["RoomDescription"] = roomDescription->data;
-        }
-
-        auto lookDescription = registry.try_get<LookDescription>(ent);
-        if(lookDescription) {
-            j["LookDescription"] = lookDescription->data;
-        }
-
-        if(!asPrototype) {
-            // Nab relationships...
-            auto location = registry.try_get<Location>(ent);
-            if (location) {
-                j["Location"] = registry.get<ObjectId>(location->data);
-            }
-
-            auto parent = registry.try_get<Parent>(ent);
-            if (parent) {
-                j["Parent"] = registry.get<ObjectId>(parent->data);
-            }
-
-            auto owner = registry.try_get<Owner>(ent);
-            if (owner) {
-                j["Owner"] = registry.get<ObjectId>(owner->data);
-            }
-        }
+    void serializeDbatEntity(entt::entity ent, bool asPrototype, nlohmann::json& j) {
 
         auto race = registry.try_get<Race>(ent);
         if(race) j["Race"] = race->data;
@@ -84,7 +45,6 @@ namespace dbat {
             for(auto &[dir, dest] : exits->data) {
                 j["Exits"].push_back(std::make_pair(dir, dest.serialize()));
             }
-
         }
 
         auto doors = registry.try_get<Doors>(ent);
@@ -94,47 +54,8 @@ namespace dbat {
             }
         }
 
-        auto rooms = registry.try_get<Rooms>(ent);
-        if(rooms) {
-            for(auto &[rid, room] : rooms->data) {
-                j["Rooms"].push_back(std::make_pair(rid, serializeEntity(room, asPrototype)));
-            }
-        }
-
         auto rflags = registry.try_get<RoomFlags>(ent);
         if(rflags && rflags->data.any()) j["RoomFlags"] = bitsetToJson(rflags->data);
-
-        auto gbounds = registry.try_get<GridBounds>(ent);
-        if(gbounds) {
-            nlohmann::json g;
-            if(gbounds->minX) g["minX"] = gbounds->minX.value();
-            if(gbounds->minY) g["minY"] = gbounds->minY.value();
-            if(gbounds->minZ) g["minZ"] = gbounds->minZ.value();
-            if(gbounds->maxX) g["maxX"] = gbounds->maxX.value();
-            if(gbounds->maxY) g["maxY"] = gbounds->maxY.value();
-            if(gbounds->maxZ) g["maxZ"] = gbounds->maxZ.value();
-            if(g.size() > 0) j["GridBounds"] = g;
-        }
-
-        auto gpoi = registry.try_get<GridPointsOfInterest>(ent);
-        if(gpoi) {
-            for(auto &[coor, poi] : gpoi->data) {
-                nlohmann::json p;
-                p.push_back(coor.serialize());
-                p.push_back(serializeEntity(poi, asPrototype));
-                j["GridPointsOfInterest"].push_back(p);
-            }
-        }
-
-        auto gloc = registry.try_get<GridLocation>(ent);
-        if(gloc) {
-            j["GridLocation"] = gloc->data.serialize();
-        }
-
-        auto rloc = registry.try_get<RoomLocation>(ent);
-        if(rloc) {
-            j["RoomLocation"] = rloc->id;
-        }
 
         auto size = registry.try_get<Size>(ent);
         if(size) {
@@ -231,47 +152,6 @@ namespace dbat {
         auto nflags = registry.try_get<NPCFlags>(ent);
         if(nflags && nflags->data.any()) j["NPCFlags"] = bitsetToJson(nflags->data);
 
-        auto character = registry.try_get<Character>(ent);
-        if(character) {
-            nlohmann::json c;
-            for(auto i = 0; i < cstat::numCharStats; i++) {
-                if(character->stats[i] != 0.0) {
-                    c["stats"].push_back(std::make_pair(i, character->stats[i]));
-                }
-            }
-            j["Character"] = c;
-        }
-
-        auto player = registry.try_get<Player>(ent);
-        if(player) {
-            j["Player"]["accountId"] = player->accountId;
-        }
-
-        auto item = registry.try_get<Item>(ent);
-        if(item) {
-            nlohmann::json it;
-            if(item->vnum) it["vnum"] = item->vnum.value();
-            j["Item"] = it;
-        }
-
-        auto npc = registry.try_get<NPC>(ent);
-        if(npc) {
-            nlohmann::json n;
-            if(npc->vnum) n["vnum"] = npc->vnum.value();
-            j["NPC"] = n;
-        }
-
-        auto room = registry.try_get<Room>(ent);
-        if(room) {
-            nlohmann::json r;
-            r["id"] = room->id;
-            r["obj"] = room->obj;
-            j["Room"] = r;
-        }
-        if(registry.any_of<Dimension>(ent)) j["Dimension"] = true;
-        if(registry.any_of<Expanse>(ent)) j["Expanse"] = true;
-        if(registry.any_of<Area>(ent)) j["Area"] = true;
-        if(registry.any_of<Vehicle>(ent)) j["Vehicle"] = true;
 
         auto cel = registry.try_get<CelestialBody>(ent);
         if(cel) {
@@ -310,38 +190,27 @@ namespace dbat {
             }
         }
 
-        return j;
+        if(registry.any_of<Dimension>(ent)) j["Dimension"] = true;
+
+        auto npcv = registry.try_get<NPCVnum>(ent);
+        if(npcv) {
+            j["NPCVnum"] = npcv->data;
+        }
+
+        auto itemv = registry.try_get<ItemVnum>(ent);
+        if(itemv) {
+            j["ItemVnum"] = itemv->data;
+        }
+
+        auto charstats = registry.try_get<CharacterStats>(ent);
+        if(charstats) {
+            for(auto i = 0; i < cstat::numCharStats; i++) {
+                if(charstats->data[i] != 0) j["CharacterStats"].push_back({i, charstats->data[i]});
+            }
+        }
     }
 
-    void deserializeEntity(entt::entity ent, const nlohmann::json& j) {
-        //logger->info("Deserializing a: {}", j.dump());
-        if(j.contains("Name")) {
-            registry.emplace<Name>(ent, j["Name"]);
-        }
-        if(j.contains("ShortDescription")) {
-            registry.emplace<ShortDescription>(ent, j["ShortDescription"]);
-        }
-        if(j.contains("RoomDescription")) {
-            registry.emplace<RoomDescription>(ent, j["RoomDescription"]);
-        }
-        if(j.contains("LookDescription")) {
-            registry.emplace<LookDescription>(ent, j["LookDescription"]);
-        }
-
-        if(j.contains("Location")) {
-            ObjectId loc(j["Location"]);
-            setLocation(ent, loc.getObject());
-        }
-
-        if(j.contains("Parent")) {
-            ObjectId parent(j["Parent"]);
-            setParent(ent, parent.getObject());
-        }
-
-        if(j.contains("Owner")) {
-            ObjectId owner(j["Owner"]);
-            setOwner(ent, owner.getObject());
-        }
+    void deserializeDbatEntity(entt::entity ent, const nlohmann::json& j) {
 
         if(j.contains("Race")) {
             auto &race = registry.get_or_emplace<Race>(ent);
@@ -394,56 +263,9 @@ namespace dbat {
             }
         }
 
-        if(j.contains("Rooms")) {
-            auto &rooms = registry.get_or_emplace<Rooms>(ent);
-            auto &o = registry.get<ObjectId>(ent);
-            auto of = registry.try_get<ObjectFlags>(ent);
-            bool groom = of && of->data.test(oflags::GLOBALROOMS);
-            for(auto &exdata : j["Rooms"]) {
-                auto r = exdata[0].get<RoomId>();
-                auto room = registry.create();
-                rooms.data.emplace(r, room);
-                deserializeEntity(room, exdata[1]);
-                auto &rm = registry.get_or_emplace<Room>(room);
-                rm.obj = o;
-                rm.id = r;
-                if(groom) legacyRooms[r] = room;
-            }
-        }
-
         if(j.contains("RoomFlags")) {
             auto &flags = registry.get_or_emplace<RoomFlags>(ent);
             jsonToBitset(j["RoomFlags"], flags.data);
-        }
-
-        if(j.contains("GridBounds")) {
-            auto &bounds = registry.get_or_emplace<GridBounds>(ent);
-            auto jb = j["GridBounds"];
-            if(jb.contains("minX")) bounds.minX = jb["minX"];
-            if(jb.contains("maxX")) bounds.maxX = jb["maxX"];
-            if(jb.contains("minY")) bounds.minY = jb["minY"];
-            if(jb.contains("maxY")) bounds.maxY = jb["maxY"];
-            if(jb.contains("minZ")) bounds.minZ = jb["minZ"];
-            if(jb.contains("maxZ")) bounds.maxZ = jb["maxZ"];
-        }
-
-        if(j.contains("GridPOintsOfInterest")) {
-            auto &poi = registry.get_or_emplace<GridPointsOfInterest>(ent);
-            for(auto &exdata : j["GridPointsOfInterest"]) {
-                auto p = registry.create();
-                poi.data.emplace(exdata[0], p);
-                deserializeEntity(p, exdata[1]);
-            }
-        }
-
-        if(j.contains("GridLocation")) {
-            auto &gloc = registry.get_or_emplace<GridLocation>(ent, j["GridLocation"]);
-        }
-
-        if(j.contains("RoomLocation")) {
-            auto &rloc = registry.get_or_emplace<RoomLocation>(ent);
-            rloc.id = j["RoomLocation"];
-            // TODO: Place ent in proper Room
         }
 
         if(j.contains("Size")) {
@@ -531,59 +353,6 @@ namespace dbat {
             jsonToBitset(j["NPCFlags"], flags.data);
         }
 
-        if(j.contains("Item")) {
-            auto data = j["Item"];
-            auto &item = registry.get_or_emplace<Item>(ent);
-            if(data.contains("vnum")) item.vnum = data["vnum"];
-        }
-
-        if(j.contains("Character")) {
-            auto data = j["Character"];
-            auto &c = registry.get_or_emplace<Character>(ent);
-            if(data.contains("stats")) {
-                for(auto &statdat : data["stats"]) {
-                    auto st = statdat[0].get<int>();
-                    c.stats[st] = statdat[1].get<double>();
-                }
-            }
-
-        }
-
-        if(j.contains("NPC")) {
-            auto data = j["NPC"];
-            auto &npc = registry.get_or_emplace<NPC>(ent);
-            if(data.contains("vnum")) npc.vnum = data["vnum"];
-        }
-
-        if(j.contains("Player")) {
-            auto &pdata = j["Player"];
-            auto &player = registry.get_or_emplace<Player>(ent);
-            player.accountId = pdata["accountId"];
-        }
-
-        if(j.contains("Room")) {
-            auto &rdata = j["Room"];
-            auto &room = registry.get_or_emplace<Room>(ent);
-            room.id = rdata["id"];
-            room.obj = ObjectId(rdata["obj"]);
-        }
-
-        if(j.contains("Dimension")) {
-            registry.get_or_emplace<Dimension>(ent);
-        }
-
-        if(j.contains("Expanse")) {
-            registry.get_or_emplace<Expanse>(ent);
-        }
-
-        if(j.contains("Area")) {
-            registry.get_or_emplace<Area>(ent);
-        }
-
-        if(j.contains("Vehicle")) {
-            registry.get_or_emplace<Vehicle>(ent);
-        }
-
         if(j.contains("CelestialBody")) {
             auto &cb = registry.get_or_emplace<CelestialBody>(ent);
             auto cbd = j["CelestialBody"];
@@ -623,50 +392,32 @@ namespace dbat {
             }
         }
 
+        if(j.contains("Dimension")) {
+            registry.get_or_emplace<Dimension>(ent);
+        }
+
+        if(j.contains("NPCVnum")) {
+            auto &vnum = registry.get_or_emplace<NPCVnum>(ent);
+            vnum.data = j["NPCVnum"];
+        }
+
+        if(j.contains("ItemVnum")) {
+            auto &vnum = registry.get_or_emplace<ItemVnum>(ent);
+            vnum.data = j["ItemVnum"];
+        }
+
+        if(j.contains("CharacterStats")) {
+            auto &stats = registry.get_or_emplace<CharacterStats>(ent);
+            // iterate through the pairs of stat ids and values to set stats.data...
+            auto statj = j["CharacterStats"];
+            for(auto &s : statj) {
+                stats.data[s[0]] = s[1];
+            }
+        }
+
     }
 
-    std::unique_ptr<SQLite::Database> db;
-
-    std::vector<std::string> schema = {
-            "CREATE TABLE IF NOT EXISTS objects ("
-            "   id INTEGER PRIMARY KEY,"
-            "   generation INTEGER NOT NULL,"
-            "   data TEXT NOT NULL,"
-            "   UNIQUE(id, generation)"
-            ");",
-
-            "CREATE TABLE IF NOT EXISTS prototypes ("
-            "   id INTEGER PRIMARY KEY,"
-            "   name TEXT NOT NULL UNIQUE COLLATE NOCASE,"
-            "   data TEXT NOT NULL"
-            ");",
-
-            "CREATE TABLE IF NOT EXISTS accounts ("
-            "   id INTEGER PRIMARY KEY,"
-            "   username TEXT NOT NULL UNIQUE COLLATE NOCASE,"
-            "   password TEXT NOT NULL DEFAULT '',"
-            "   email TEXT NOT NULL DEFAULT '',"
-            "   created INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   lastLogin INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   lastLogout INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   lastPasswordChanged INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   totalPlayTime REAL NOT NULL DEFAULT 0,"
-            "   totalLoginTime REAL NOT NULL DEFAULT 0,"
-            "   disabledReason TEXT NOT NULL DEFAULT '',"
-            "   disabledUntil INTEGER NOT NULL DEFAULT 0,"
-            "   adminLevel INTEGER NOT NULL DEFAULT 0"
-            ");",
-
-            "CREATE TABLE IF NOT EXISTS playerCharacters ("
-            "   character INTEGER NOT NULL,"
-            "   account INTEGER NOT NULL,"
-            "   lastLogin INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   lastLogout INTEGER NOT NULL DEFAULT (strftime('%s','now')),"
-            "   totalPlayTime REAL NOT NULL DEFAULT 0,"
-            "   FOREIGN KEY(account) REFERENCES accounts(id) ON UPDATE CASCADE ON DELETE CASCADE,"
-            "   FOREIGN KEY(character) REFERENCES objects(id) ON UPDATE CASCADE ON DELETE CASCADE,"
-            "   PRIMARY KEY(character)"
-            ");",
+    std::vector<std::string> extraSchema = {
 
             "CREATE TABLE IF NOT EXISTS zones ("
             "   id INTEGER PRIMARY KEY,"
@@ -687,44 +438,8 @@ namespace dbat {
             ");"
     };
 
-    // Presumably this will only be called if there ARE any dirties.
-    void processDirty() {
-
-        SQLite::Statement q1(*db, "INSERT OR REPLACE INTO objects (id, generation, data) VALUES (?, ?, ?);");
-        SQLite::Statement q2(*db, "DELETE FROM objects WHERE id = ? AND generation = ?;");
-
-        for(auto &obj : dirty) {
-            auto ent = obj.getObject();
-            if(registry.valid(ent)) {
-                q1.bind(1, static_cast<int64_t>(obj.index));
-                q1.bind(2, obj.generation);
-                q1.bind(3, serializeEntity(ent).dump(4, ' ', false, nlohmann::json::error_handler_t::ignore));
-                q1.exec();
-                q1.reset();
-            } else {
-                q2.bind(1, static_cast<int64_t>(obj.index));
-                q2.bind(2, obj.generation);
-                q2.exec();
-                q2.reset();
-            }
-        }
-
-        dirty.clear();
-
-    }
-
-    void readyDatabase() {
-        db = std::make_unique<SQLite::Database>(conf::dbName, SQLite::OPEN_READWRITE | SQLite::OPEN_CREATE);
-
-        SQLite::Transaction trans(*db);
-        for(auto &s : schema) {
-            db->exec(s);
-        }
-
-        trans.commit();
-    }
-
     void loadLegacySpace() {
+        broadcast("Loading legacy space...  amoebas and all.");
         SQLite::Statement q(*db, "SELECT * from legacySpaceRooms;");
         while(q.executeStep()) {
             auto id = q.getColumn("id").getInt64();
@@ -748,41 +463,13 @@ namespace dbat {
         }
     }
 
-    void loadObjects() {
-        // Step 1: get max id of objects table.
-        SQLite::Statement q(*db, "SELECT MAX(id) FROM objects;");
-        q.executeStep();
-        auto count = q.getColumn(0).getInt64();
-
-        // Reserve RAM for a single easy allocation to make this simple...
-        objects.resize(count + 50, {0, entt::null});
-
-        SQLite::Statement q1(*db, "SELECT id, generation FROM objects;");
-        while(q1.executeStep()) {
-            auto id = q1.getColumn(0).getInt64();
-            auto gen = q1.getColumn(1).getInt64();
-            auto ent = registry.create();
-            registry.emplace<ObjectId>(ent, id, gen);
-            objects[id] = {gen, ent};
-        }
-
-        // Now we're gonna need to select id and data from objects to deserialize.
-        SQLite::Statement q2(*db, "SELECT id, data FROM objects;");
-        while(q2.executeStep()) {
-            auto id = q2.getColumn(0).getInt64();
-            auto data = q2.getColumn(1).getText();
-            auto ent = objects[id].second;
-            deserializeEntity(ent, nlohmann::json::parse(data));
-        }
-
-    }
-
     void loadZones() {
         // let's retrieve the count of zones.
         SQLite::Statement q1(*db, "SELECT COUNT(*) FROM zones;");
         q1.executeStep();
         auto count = q1.getColumn(0).getInt64();
         zones.reserve(count);
+        broadcast(fmt::format("Loading {} Legacy Zones...", count));
 
         SQLite::Statement q(*db, "SELECT id, data from zones;");
         while(q.executeStep()) {
@@ -799,6 +486,7 @@ namespace dbat {
         q1.executeStep();
         auto count = q1.getColumn(0).getInt64();
         dgScripts.reserve(count);
+        broadcast(fmt::format("Loading {} Legacy DgScripts...", count));
 
         SQLite::Statement q(*db, "SELECT id, data from scripts;");
         while(q.executeStep()) {
@@ -807,13 +495,6 @@ namespace dbat {
             auto ent = registry.create();
             dgScripts[id] = std::make_shared<DgScriptPrototype>(nlohmann::json::parse(data));
         }
-    }
-
-    void loadDatabase() {
-        loadZones();
-        loadScripts();
-        loadLegacySpace();
-        loadObjects();
     }
 
     void saveZones() {
@@ -856,24 +537,6 @@ namespace dbat {
         q.bind(2, data.dump(4, ' ', false, nlohmann::json::error_handler_t::ignore));
         q.exec();
         q.reset();
-    }
-
-    void savePrototype(const std::string& name, const nlohmann::json& j) {
-        SQLite::Statement q(*db, "INSERT OR REPLACE INTO prototypes (name, data) VALUES (?, ?) ON CONFLICT(name) DO UPDATE set data=VALUES(data)");
-        q.bind(1, name);
-        q.bind(2, j.dump(4, ' ', false, nlohmann::json::error_handler_t::ignore));
-        q.exec();
-        q.reset();
-    }
-
-    std::optional<nlohmann::json> getPrototype(const std::string& name) {
-        SQLite::Statement q(*db, "SELECT data FROM prototypes WHERE name = ?;");
-        q.bind(1, name);
-        if(q.executeStep()) {
-            auto data = q.getColumn(0).getText();
-            return nlohmann::json::parse(data);
-        }
-        return std::nullopt;
     }
 
 }

@@ -25,14 +25,12 @@ namespace dbat {
 
     }
 
-    void DBATConnection::sendText(const std::string& msg) {
-        std::string s = renderAnsi(msg, capabilities.colorType);
-        core::Connection::sendText(s);
-    }
-
     std::shared_ptr<core::Connection> makeClientConnection(int64_t conn_id, JsonChannel chan) {
         return std::make_shared<dbat::DBATConnection>(conn_id, std::move(chan));
     }
+
+
+
 
 
 }
