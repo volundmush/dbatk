@@ -37,5 +37,8 @@ namespace dbat::dir {
         GridPoint coordinates;
     };
 
+    extern const std::unordered_map<std::string, std::string> exitAliases;
     extern const std::vector<Direction> directions;
+
+    std::optional<DirectionId> parseDirection(const std::string& txt, bool enableInOut = true);
 }

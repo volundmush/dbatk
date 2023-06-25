@@ -2,6 +2,21 @@
 
 namespace dbat::dir {
 
+    const std::unordered_map<std::string, std::string> exitAliases = {
+            {"n", "north"},
+            {"s", "south"},
+            {"e", "east"},
+            {"w", "west"},
+            {"u", "up"},
+            {"d", "down"},
+            {"nw", "northwest"},
+            {"ne", "northeast"},
+            {"sw", "southwest"},
+            {"se", "southeast"},
+            {"in", "inside"},
+            {"out", "outside"}
+    };
+
     const std::vector<Direction> directions = {
             {North,     "north",     "n",  South,     "south",     "s",  GridPoint(0, 1, 0)},
             {East,      "east",      "e",  West,      "west",      "w",  GridPoint(1, 0, 0)},
@@ -16,5 +31,26 @@ namespace dbat::dir {
             {Inside,    "inside",    "in", Outside,   "outside",   "o",  GridPoint(0, 0, 0)},
             {Outside,   "outside",   "o",  Inside,    "inside",    "in", GridPoint(0, 0, 0)},
     };
+
+    std::optional<DirectionId> parseDirection(const std::string& txt, bool enableInOut) {
+        std::string check = boost::to_lower_copy(txt);
+        boost::trim(check);
+
+        auto begin = directions.begin();
+        auto end = directions.end();
+        if(!enableInOut) {
+            end -= 2;
+        }
+
+        auto result = std::find_if(begin, end, [&check](const Direction& dir) {
+            return dir.getName() == check || dir.getAbbr() == check;
+        });
+        if(result != end) {
+            return result->getId();
+        } else {
+            return std::nullopt;
+        }
+
+    }
 
 }
