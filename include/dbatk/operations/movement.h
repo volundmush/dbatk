@@ -1,5 +1,6 @@
 #pragma once
 #include "dbatk/base.h"
+#include "dbatk/components.h"
 #include "dbatk/aspects/direction.h"
 
 namespace dbat::op {

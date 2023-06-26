@@ -1,8 +1,17 @@
 #include "dbatk/operations/movement.h"
-#include "core/api.h"
+#include "dbatk/api.h"
 #include "dbatk/components.h"
 
 namespace dbat::op {
+    OpResult<> travelToDestination(entt::entity ent, const Destination& dest) {
+        MoveParams params;
+        params.dest = dest;
+        params.moveType = MoveType::Traverse;
+        params.traverseType = TraverseType::Physical;
+        params.mover = ent;
+        return moveTo(ent, params);
+    }
+
     OpResult<> travelInDirection(entt::entity ent, const std::string& dir) {
         auto dirOpt = dir::parseDirection(dir);
         if(!dirOpt) {
@@ -12,13 +21,10 @@ namespace dbat::op {
     }
 
     OpResult<> travelInDirectionArea(entt::entity ent, dir::DirectionId dir) {
-        auto loc = getLocation(ent);
-        auto rloc = registry.try_get<RoomLocation>(ent);
-        if(!rloc) {
-            return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
-        }
-        auto &area = registry.get<Area>(loc);
-        auto room = area.data.find(rloc->id);
+        auto loc = registry.try_get<Location>(ent);
+        auto id = loc->x;
+        auto &area = registry.get<Area>(loc->data);
+        auto room = area.data.find(id);
         if(room == area.data.end()) {
             return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
         }
@@ -39,20 +45,16 @@ namespace dbat::op {
             }
         }
         Destination dest = exit->second;
-        if(dest.ent == entt::null) {
-            dest.ent = loc;
+        if(dest.data == entt::null) {
+            dest.data = loc->data;
         }
         return travelToDestination(ent, dest);
     }
 
     OpResult<> travelInDirectionExpanse(entt::entity ent, dir::DirectionId dir) {
-        auto loc = getLocation(ent);
-        auto gloc = registry.try_get<GridLocation>(ent);
-        if(!gloc) {
-            return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
-        }
-        auto &exp = registry.get<Expanse>(loc);
-        auto gp = gloc->data;
+        auto loc = registry.try_get<Location>(ent);
+        auto &exp = registry.get<Expanse>(loc->data);
+        GridPoint gp(loc->x, loc->y, loc->z);
 
         // If there is a POI present, check its exits before we try normal movement...
         auto poi = exp.poi.find(gp);
@@ -62,8 +64,8 @@ namespace dbat::op {
                 auto exit = exits->data.find(dir);
                 if(exit != exits->data.end()) {
                     Destination dest = exit->second;
-                    if(dest.ent == entt::null) {
-                        dest.ent = loc;
+                    if(dest.data == entt::null) {
+                        dest.data = loc->data;
                     }
                     return travelToDestination(ent, dest);
                 }
@@ -118,30 +120,31 @@ namespace dbat::op {
         }
         // Good to go, let's move!
         Destination dest;
-        dest.ent = loc;
-        dest.destination = gp;
+        dest.data = loc->data;
+        dest.x = gp.x;
+        dest.y = gp.y;
+        dest.z = gp.z;
+        dest.locationType = LocationType::Expanse;
         return travelToDestination(ent, dest);
     }
 
     OpResult<> travelInDirection(entt::entity ent, dir::DirectionId dir) {
-        auto loc = getLocation(ent);
-        if(!registry.valid(loc)) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
             return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
         }
 
         // We need to figure out if we're in an Area, Expanse, Map, or Space...
-        if(registry.any_of<Area>(loc)) {
+        if(loc->locationType == LocationType::Area) {
             return travelInDirectionArea(ent, dir);
-        } else if(registry.any_of<Expanse>(loc)) {
+        } else if(loc->locationType == LocationType::Expanse) {
             return travelInDirectionExpanse(ent, dir);
-        } else if(registry.any_of<Map>(loc)) {
+        } else if(loc->locationType == LocationType::Map) {
             return travelInDirectionMap(ent, dir);
-        } else if(registry.any_of<Space>(loc)) {
+        } else if(loc->locationType == LocationType::Space) {
             return travelInDirectionSpace(ent, dir);
         } else {
             return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
         }
     }
-
-
 }

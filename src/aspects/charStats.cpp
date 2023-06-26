@@ -6,15 +6,26 @@ namespace dbat::cstat {
     const std::unordered_map<StatId, std::shared_ptr<BaseCharacterStat>> characterStats = {
             // Real stats.
             {STRENGTH, std::make_shared<Strength>()},
-            {CONSTITUTION, std::make_shared<Constitution>()},
-            {AGILITY, std::make_shared<Agility>()},
             {INTELLIGENCE, std::make_shared<Intelligence>()},
-            {SPIRIT, std::make_shared<Spirit>()},
             {WISDOM, std::make_shared<Wisdom>()},
+            {DEXTERITY, std::make_shared<Dexterity>()},
+            {CONSTITUTION, std::make_shared<Constitution>()},
+            {SPEED, std::make_shared<Speed>()},
+
             {ALIGNMENT, std::make_shared<Alignment>()},
             {EXPERIENCE, std::make_shared<Experience>()},
-            {DAMAGE_LIFEFORCE, std::make_shared<DamageLifeForce>()},
+            {LEVEL, std::make_shared<Level>()},
+            {SUPPRESS, std::make_shared<Suppress>()},
+            {ARMOR, std::make_shared<Armor>()},
+
+            {POWERLEVEL, std::make_shared<PowerLevel>()},
+            {STAMINA, std::make_shared<Stamina>()},
+            {KI, std::make_shared<Ki>()},
+
+            {DAMAGE_POWERLEVEL, std::make_shared<DamagePowerLevel>()},
             {DAMAGE_STAMINA, std::make_shared<DamageStamina>()},
+            {DAMAGE_KI, std::make_shared<DamageKi>()},
+            {DAMAGE_LIFEFORCE, std::make_shared<DamageLifeForce>()},
 
             // Virtual Stats follow...
     };
@@ -40,11 +51,6 @@ namespace dbat::cstat {
 
     // Real Stats section...
 
-    // Virtual Stats section...
-    double Level::calcEffective(entt::entity ent, std::unordered_map<std::size_t, double> &cache) {
-        auto exp = characterStats.find(EXPERIENCE);
-        return 1.0 + std::floor(exp->second->getEffective(ent, cache) / 1000.0);
-    }
 
 
 }

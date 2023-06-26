@@ -1,7 +1,13 @@
 #include "dbatk/components.h"
 #include "dbatk/database.h"
+#include "dbatk/color.h"
 
 namespace dbat {
+
+    void StringView::setData(const std::string& txt) {
+        data = intern(txt);
+        clean = intern(stripAnsi(txt));
+    }
     
     nlohmann::json Door::serialize() {
         nlohmann::json d;
@@ -44,6 +50,30 @@ namespace dbat {
         if(level) j["level"] = level;
         if(bonus) j["bonus"] = bonus;
         if(perfection) j["perfection"] = perfection;
+        return j;
+    }
+
+    Location::Location(const nlohmann::json& j) {
+        if(j.contains("data")) {
+            ObjectId obj(j["data"]);
+            data = obj.getObject();
+        }
+        if(j.contains("locationType")) {
+            locationType = j["locationType"].get<LocationType>();
+        }
+        if(j.contains("x")) x = j["x"];
+        if(j.contains("y")) y = j["y"];
+        if(j.contains("z")) z = j["z"];
+    }
+
+    nlohmann::json Location::serialize() {
+        nlohmann::json j;
+        if(data != entt::null) j["data"] = registry.get<ObjectId>(data);
+        j["locationType"] = locationType;
+        if(x != 0.0) j["x"] = x;
+        if(y != 0.0) j["y"] = y;
+        if(z != 0.0) j["z"] = z;
+
         return j;
     }
 

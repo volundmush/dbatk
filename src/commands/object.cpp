@@ -1,17 +1,24 @@
 #include "dbatk/commands/object.h"
-#include "core/api.h"
+#include "dbatk/api.h"
 #include "dbatk/components.h"
 #include "dbatk/aspects/direction.h"
 #include "dbatk/operations/movement.h"
+#include "dbatk/operations/information.h"
 
 namespace dbat::cmd {
     void ObjLook::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
-        auto loc = getLocation(ent);
-        if(!registry.valid(loc)) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
             sendText(ent, "You are nowhere.");
             return;
         }
-        atLook(ent, loc);
+
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            sendText(ent, op::renderRoomAppearance(room, ent));
+            return;
+        }
     }
 
     void ObjHelp::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
@@ -22,8 +29,8 @@ namespace dbat::cmd {
 
     OpResult<> ObjMove::canExecute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         // This command requires that ent be in a location.
-        auto loc = getLocation(ent);
-        if(!registry.valid(loc)) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
             return {false, "You are somewhere beyond space and time... ordinary movement will not avail you."};
         }
         return {true, std::nullopt};

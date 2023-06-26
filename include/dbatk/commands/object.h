@@ -1,7 +1,7 @@
 #pragma once
 #include "dbatk/base.h"
-#include "core/commands.h"
-#include "core/components.h"
+#include "dbatk/commands.h"
+#include "dbatk/components.h"
 
 namespace dbat::cmd {
 

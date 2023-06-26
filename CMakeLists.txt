@@ -12,25 +12,41 @@ include(${CPM_DOWNLOAD_LOCATION})
 
 project(dbatk)
 
-add_subdirectory(../CoreMUD coremud_build)
+CPMAddPackage("gh:gabime/spdlog#v1.11.0")
+CPMAddPackage("gh:nlohmann/json#v3.11.2")
+CPMAddPackage("gh:fmtlib/fmt#9.1.0")
+CPMAddPackage("gh:robinlinden/libsodium-cmake#master")
+CPMAddPackage("gh:SRombauts/SQLiteCpp#3.3.0")
+CPMAddPackage("gh:skypjack/entt#v3.11.1")
+
+find_package(SQLite3 REQUIRED)
+find_package(Boost REQUIRED COMPONENTS system program_options regex)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
 
-
 file(GLOB_RECURSE DBATK_INCLUDE include/*.h)
 file(GLOB_RECURSE DBATK_SRC src/*.cpp)
 
 SET(DBATK_INCLUDE_DIRS
         include
-        ${COREMUD_INCLUDE_DIRS}
+        ${Boost_INCLUDE_DIRS}
+        ${spdlog_SOURCE_DIR}/include
+        ${nlohmann_json_SOURCE_DIR}/single_include
+        ${SQLiteCpp_SOURCE_DIR}/include
+        ${sodium_SOURCE_DIR}/libsodium/src/libsodium/include
+        ${FMT_SOURCE_DIR}/include
+        ${entt_SOURCE_DIR}/single_include
 )
 
 set(DBATK_LINK_LIBRARIES
-        ${COREMUD_LINK_LIBRARIES}
-        coremud
+        ${SQLite3_LIBRARIES}
+        SQLiteCpp
+        ${Boost_LIBRARIES}
+        sodium
+        fmt::fmt
 )
 
 # this is the core library we're making.

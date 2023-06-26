@@ -3,6 +3,8 @@
 
 namespace dbat {
 
-    std::string circleRenderAnsi(std::string_view input, ColorType color);
+    std::string stripAnsi(std::string_view input);
+
+    std::string renderAnsi(std::string_view input, ColorType color);
 
 }
