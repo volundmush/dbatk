@@ -13,5 +13,6 @@ namespace dbat::config {
     std::size_t startingObject = 70;
     RoomId startingRoom = 300;
     int64_t legacySpaceId = 7;
+    bool testMode{false};
 
 }

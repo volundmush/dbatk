@@ -11,18 +11,16 @@ namespace dbat {
     nlohmann::json serializeEntity(entt::entity ent, bool asPrototype) {
         nlohmann::json j;
 
-        auto name = registry.try_get<Name>(ent);
-        if (name) {
+
+        if (auto name = registry.try_get<Name>(ent); name) {
             j["Name"] = name->data;
         }
 
-        auto shortDescription = registry.try_get<ShortDescription>(ent);
-        if (shortDescription) {
+        if (auto shortDescription = registry.try_get<ShortDescription>(ent); shortDescription) {
             j["ShortDescription"] = shortDescription->data;
         }
 
-        auto roomDescription = registry.try_get<RoomDescription>(ent);
-        if (roomDescription) {
+        if (auto roomDescription = registry.try_get<RoomDescription>(ent); roomDescription) {
             j["RoomDescription"] = roomDescription->data;
         }
 
@@ -299,11 +297,9 @@ namespace dbat {
             }
         }
 
-        auto dg = registry.try_get<DgScripts>(ent);
-        if(dg && !dg->data.empty()) {
-            for(auto &d : dg->data) {
-                j["DgScripts"].push_back(d);
-            }
+
+        if(auto dg = registry.try_get<DgScripts>(ent); dg) {
+            j["DgScripts"] = dg->serialize();
         }
 
         auto im = registry.try_get<ItemModifiers>(ent);
@@ -337,6 +333,21 @@ namespace dbat {
             for(auto i = 0; i < cstat::numCharStats; i++) {
                 if(charstats->data[i] != 0) j["CharacterStats"].push_back({i, charstats->data[i]});
             }
+        }
+
+        auto legload = registry.try_get<LegacyLoadRoom>(ent);
+        if(legload) {
+            j["LegacyLoadRoom"] = legload->id;
+        }
+
+        auto proto = registry.try_get<Prototype>(ent);
+        if(proto) {
+            j["Prototype"] = proto->data;
+        }
+
+        auto money = registry.try_get<Money>(ent);
+        if(money) {
+            j["Money"] = money->data;
         }
 
         return j;
@@ -637,11 +648,8 @@ namespace dbat {
 
         if(j.contains("DgScripts")) {
             // This is an array of integers. fill up the DgScripts component's data vector.
-            auto &dg = registry.get_or_emplace<DgScripts>(ent);
-            auto dgj = j["DgScripts"];
-            for(auto &i : dgj) {
-                dg.data.push_back(i);
-            }
+            auto &dg = registry.get_or_emplace<DgScripts>(ent, ent, j["DgScripts"]);
+
         }
 
         if(j.contains("ItemModifiers")) {
@@ -675,6 +683,23 @@ namespace dbat {
             for(auto &s : statj) {
                 stats.data[s[0]] = s[1];
             }
+        }
+
+        if(j.contains("LegacyLoadRoom")) {
+            auto &lr = registry.get_or_emplace<LegacyLoadRoom>(ent);
+            lr.id = j["LegacyLoadRoom"];
+        }
+
+        if(j.contains("Prototype")) {
+            auto &proto = registry.get_or_emplace<Prototype>(ent);
+            std::string p = j["Prototype"];
+            proto.data = intern(p);
+            protoTracker[p].insert(ent);
+        }
+
+        if(j.contains("Money")) {
+            auto &money = registry.get_or_emplace<Money>(ent);
+            money.data = j["Money"];
         }
 
     }
@@ -810,11 +835,11 @@ namespace dbat {
             auto ent = objects[id].second;
             deserializeEntity(ent, nlohmann::json::parse(data));
             hydrated++;
-            if(hydrated % 100 == 0) {
+            if(hydrated % (count / 4) == 0) {
                 broadcast(fmt::format("Hydrated {}/{} objects.", hydrated, counter));
             }
         }
-        broadcast(fmt::format("Hydrated {} objects.", hydrated));
+        broadcast(fmt::format("Hydrated {}/{} objects.", hydrated, counter));
 
         broadcast(fmt::format("Finishing touches on objects..."));
         loadRelations();
@@ -853,21 +878,40 @@ namespace dbat {
             auto &of = v2.get<ObjectFlags>(e);
             auto &o = v2.get<ObjectId>(e);
             auto &a = v2.get<Area>(e);
+
+            if(of.data.test(oflags::GLOBALROOMS)) {
+                for(auto &[id, en] : a.data) {
+                    Destination dest;
+                    dest.locationType = LocationType::Area;
+                    dest.x = id;
+                    dest.data = e;
+                    legacyRooms[id] = dest;
+                }
+            }
         }
+
+        // Load script variables properly.
+        auto v3 = registry.view<DgScripts>();
+        for(auto e : v3) {
+            auto &d = v3.get<DgScripts>(e);
+            d.checkEntity();
+        }
+
+        globalDgVars.checkEntity();
 
     }
 
     void loadDatabase() {
         broadcast("Loading game database... please wait warmly...");
-        loadLegacySpace();
         loadZones();
         loadScripts();
         loadObjects();
         broadcast("Loaded Objects.");
+        loadLegacySpace();
     }
 
     void savePrototype(const std::string& name, const nlohmann::json& j) {
-        SQLite::Statement q(*db, "INSERT OR REPLACE INTO prototypes (name, data) VALUES (?, ?) ON CONFLICT(name) DO UPDATE set data=VALUES(data)");
+        SQLite::Statement q(*db, "INSERT OR REPLACE INTO prototypes (name, data) VALUES (?, ?)");
         q.bind(1, name);
         q.bind(2, j.dump(4, ' ', false, nlohmann::json::error_handler_t::ignore));
         q.exec();
@@ -884,28 +928,32 @@ namespace dbat {
         return std::nullopt;
     }
 
-
-
     void loadLegacySpace() {
         broadcast("Loading legacy space...  amoebas and all.");
         SQLite::Statement q(*db, "SELECT * from legacySpaceRooms;");
+        auto obj = getObject(config::legacySpaceId);
         while(q.executeStep()) {
+            Destination dest;
+            dest.data = obj;
+            dest.locationType = LocationType::Expanse;
             auto id = q.getColumn("id").getInt64();
-            auto x = q.getColumn("x").getInt64();
-            auto y = q.getColumn("y").getInt64();
-            auto z = q.getColumn("z").getInt64();
-            legacySpaceRooms.emplace(id, GridPoint(x, y, z));
-
+            dest.x = q.getColumn("x").getInt64();
+            dest.y = q.getColumn("y").getInt64();
+            dest.z = q.getColumn("z").getInt64();
+            legacyRooms[id] = dest;
         }
     }
 
     void saveLegacySpace() {
         SQLite::Statement q(*db, "INSERT OR REPLACE INTO legacySpaceRooms (id, x, y, z) VALUES (?, ?, ?, ?);");
-        for(auto &i : legacySpaceRooms) {
-            q.bind(1, static_cast<int64_t>(i.first));
-            q.bind(2, i.second.x);
-            q.bind(3, i.second.y);
-            q.bind(4, i.second.z);
+        for(auto &[id, d] : legacyRooms) {
+            if(d.locationType != LocationType::Expanse) {
+                continue;
+            }
+            q.bind(1, static_cast<int64_t>(id));
+            q.bind(2, d.x);
+            q.bind(3, d.y);
+            q.bind(4, d.z);
             q.exec();
             q.reset();
         }
@@ -926,6 +974,14 @@ namespace dbat {
             auto ent = registry.create();
             zones.emplace(id, nlohmann::json::parse(data));
         }
+
+        int counter = 0;
+        for(auto &[id, z] : zones) {
+            z.id = id;
+            // Stagger zone resets so they don't all happen entirely at once....
+            z.age = 0.3 * ++counter;
+        }
+
     }
 
     void loadScripts() {

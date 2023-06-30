@@ -7,7 +7,7 @@
 
 namespace dbat {
     std::vector<std::function<async<void>()>> gameStartupFuncs;
-    std::vector<std::function<async<void>(double)>> preHeartbeatFuncs, postHeartbeatFuncs;
+
     async<void> game() {
         logger->info("Starting game");
         logger->info("Sorting systems...");
@@ -44,6 +44,7 @@ namespace dbat {
             logger->critical("Exception while loading database: {}", e.what());
             shutdown(EXIT_FAILURE);
         }
+        gameIsLoading = false;
 
         auto previousTime = boost::asio::steady_timer::clock_type::now();
         boost::asio::steady_timer timer(co_await boost::asio::this_coro::executor, config::heartbeatInterval);
@@ -57,13 +58,7 @@ namespace dbat {
             double deltaTimeInSeconds = std::chrono::duration<double>(deltaTime).count();
 
             try {
-                for(auto& func : preHeartbeatFuncs) {
-                    co_await func(deltaTimeInSeconds);
-                }
                 co_await heartbeat(deltaTimeInSeconds);
-                for(auto& func : postHeartbeatFuncs) {
-                    co_await func(deltaTimeInSeconds);
-                }
             } catch(std::exception& e) {
                 logger->critical("Exception during heartbeat: {}", e.what());
                 broadcast("Critical error detected in game simulation, commencing emergency shutdown!");
@@ -97,10 +92,13 @@ namespace dbat {
     }
 
     async<void> heartbeat(double deltaTime) {
+        SQLite::Transaction transaction(*db);
         for(auto &sys : sortedSystems) {
             if(co_await sys->shouldRun(deltaTime))
                 co_await sys->run(deltaTime);
         }
+        processDirty();
+        transaction.commit();
         co_return;
     }
 

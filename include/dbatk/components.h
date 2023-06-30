@@ -15,6 +15,7 @@
 #include "dbatk/aspects/material.h"
 #include "dbatk/aspects/npcFlags.h"
 #include "dbatk/aspects/objFlags.h"
+#include "dbatk/aspects/playerFlags.h"
 #include "dbatk/aspects/position.h"
 #include "dbatk/aspects/pref.h"
 #include "dbatk/aspects/race.h"
@@ -40,12 +41,15 @@ namespace dbat {
     struct Name : StringView {
         using StringView::StringView;
     };
+
     struct ShortDescription : StringView {
         using StringView::StringView;
     };
+
     struct RoomDescription : StringView {
         using StringView::StringView;
     };
+
     struct LookDescription : StringView {
         using StringView::StringView;
     };
@@ -56,31 +60,6 @@ namespace dbat {
 
     struct ReverseEntity {
         std::vector<entt::entity> data{};
-    };
-
-    enum class LocationType : int8_t {
-        Inventory = 0,
-        Equipment = 1,
-        Area = 2,
-        Expanse = 3,
-        Map = 4,
-        Space = 5
-    };
-
-    struct Location : Entity {
-        Location() = default;
-        explicit Location(const nlohmann::json &j);
-        LocationType locationType{LocationType::Inventory};
-        // These coordinates serve multiple purposes. For an Area/Expanse/Map/Space, they are
-        // the coordinates of the object in that plane.
-        // For Inventory, they are unused (but I can see a case of using them for sorting or organization,
-        // or maybe separate inventory pockets.) For equipment, x is used for the wear location.
-        double x{0.0}, y{0.0}, z{0.0};
-        nlohmann::json serialize();
-    };
-
-    struct Destination : Location {
-        using Location::Location;
     };
 
     struct Inventory {
@@ -178,9 +157,11 @@ namespace dbat {
     struct Item {
 
     };
+
     struct Character {
 
     };
+
     struct NPC {
 
     };
@@ -329,7 +310,11 @@ namespace dbat {
     };
 
     struct PlayerFlags {
-        //std::bitset<pflags::NUM_PLAYER_FLAGS> data;
+        std::bitset<pflags::countPlayerFlags> data;
+    };
+
+    struct PreferenceFlags {
+        std::bitset<pref::numPrfFlags> data;
     };
 
     struct Gravity {
@@ -347,10 +332,6 @@ namespace dbat {
 
     struct ExtraDescriptions {
         std::vector<std::pair<std::string_view, std::string_view>> data{};
-    };
-
-    struct DgScripts {
-        std::vector<std::size_t> data{};
     };
 
     // Just yoinking this straight from the old game.
@@ -389,6 +370,15 @@ namespace dbat {
 
     struct NPCVnum {
         std::size_t data{0};
+    };
+
+    struct PendingCommand {
+        std::list<std::string> inputQueue;
+        double waitTime{0.0};
+    };
+
+    struct LegacyLoadRoom {
+        RoomId id;
     };
 
 

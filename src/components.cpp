@@ -53,28 +53,6 @@ namespace dbat {
         return j;
     }
 
-    Location::Location(const nlohmann::json& j) {
-        if(j.contains("data")) {
-            ObjectId obj(j["data"]);
-            data = obj.getObject();
-        }
-        if(j.contains("locationType")) {
-            locationType = j["locationType"].get<LocationType>();
-        }
-        if(j.contains("x")) x = j["x"];
-        if(j.contains("y")) y = j["y"];
-        if(j.contains("z")) z = j["z"];
-    }
 
-    nlohmann::json Location::serialize() {
-        nlohmann::json j;
-        if(data != entt::null) j["data"] = registry.get<ObjectId>(data);
-        j["locationType"] = locationType;
-        if(x != 0.0) j["x"] = x;
-        if(y != 0.0) j["y"] = y;
-        if(z != 0.0) j["z"] = z;
-
-        return j;
-    }
 
 }

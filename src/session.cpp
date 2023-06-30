@@ -1,5 +1,6 @@
 #include "dbatk/session.h"
 #include "dbatk/connection.h"
+#include "dbatk/components.h"
 
 namespace dbat {
 
@@ -7,6 +8,7 @@ namespace dbat {
         this->id = id;
         this->account = account;
         this->character = character;
+        this->puppet = character;
         created = std::chrono::system_clock::now();
         lastActivity = std::chrono::steady_clock::now();
     }
@@ -39,13 +41,14 @@ namespace dbat {
 
     void Session::handleText(const std::string &text) {
         lastActivity = std::chrono::steady_clock::now();
+        auto &p = registry.get_or_emplace<PendingCommand>(puppet);
         if(text == "--") {
             // clear the queue.
-            inputQueue.clear();
+            p.inputQueue.clear();
             sendText("Your input queue has been cleared of all pending commands.\n");
             return;
         }
-        inputQueue.push_back(text);
+        p.inputQueue.push_back(text);
     }
 
     void Session::onNetworkDisconnected(int64_t connId) {
@@ -115,16 +118,8 @@ namespace dbat {
     }
 
     void Session::onHeartbeat(double deltaTime) {
-        /*
-        if(inputQueue.empty()) {
-            return;
-        }
-        auto& input = inputQueue.front();
-        auto &cmd = registry.get_or_emplace<PendingCommand>(puppet);
-        cmd.input = input;
-        // Now we remove input from inputQueue.
-        inputQueue.pop_front();
-        */
+
+
     }
 
     void Session::sendOutput(double deltaTime) {

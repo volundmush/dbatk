@@ -1,6 +1,10 @@
 #include "dbatk/system.h"
 #include "dbatk/connection.h"
 #include "dbatk/session.h"
+#include "dbatk/api.h"
+#include "dbatk/components.h"
+#include "dbatk/zone.h"
+#include "dbatk/dgscript.h"
 
 namespace dbat {
 
@@ -73,11 +77,56 @@ namespace dbat {
         co_return;
     }
 
+    async<void> ProcessOutput::run(double deltaTime) {
+        for(auto& [id, session] : sessions) {
+            session->sendOutput(deltaTime);
+        }
+        co_return;
+    }
+
+    async<void> ProcessCommands::run(double deltaTime) {
+        auto view = registry.view<PendingCommand>();
+
+        for(auto e : view) {
+            auto &p = view.get<PendingCommand>(e);
+            p.waitTime -= deltaTime;
+            if(p.waitTime <= 0.0) {
+                std::string cmd = p.inputQueue.front();
+                p.inputQueue.pop_front();
+                if(p.inputQueue.empty()) {
+                    registry.remove<PendingCommand>(e);
+                } else {
+                    p.waitTime = 0.0;
+                }
+                executeCommand(e, cmd);
+            }
+        }
+        co_return;
+    }
+
+    async<void> ProcessZones::run(double deltaTime) {
+        for(auto& [id, z] : zones) {
+            z.onHeartbeat(deltaTime);
+        }
+        co_return;
+    }
+
+    async<void> ProcessDgScripts::run(double deltaTime) {
+        auto instances = dgScriptInstances;
+        for(auto& inst : instances) {
+            inst->onHeartbeat(deltaTime);
+        }
+        co_return;
+    }
+
+
     void registerSystems() {
         registerSystem(std::make_shared<ProcessConnections>());
         registerSystem(std::make_shared<ProcessSessions>());
-        //registerSystem(std::make_shared<ProcessOutput>());
-        //registerSystem(std::make_shared<ProcessCommands>());
+        registerSystem(std::make_shared<ProcessOutput>());
+        registerSystem(std::make_shared<ProcessCommands>());
+        registerSystem(std::make_shared<ProcessZones>());
+        registerSystem(std::make_shared<ProcessDgScripts>());
     }
 
 }

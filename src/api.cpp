@@ -2,6 +2,10 @@
 #include "dbatk/components.h"
 #include "dbatk/color.h"
 #include "dbatk/session.h"
+#include "dbatk/operations/movement.h"
+#include "dbatk/operations/information.h"
+#include "dbatk/commands.h"
+#include "dbatk/triggers.h"
 
 namespace dbat {
 
@@ -248,19 +252,22 @@ namespace dbat {
     }
 
     void unequip(entt::entity ent, entt::entity item, MoveParams& params) {
-
+        registry.erase<Location>(item);
     }
 
     void removeFromInventory(entt::entity ent, entt::entity item, MoveParams& params) {
-
+        registry.erase<Location>(item);
     }
 
     void leaveRoom(entt::entity ent, entt::entity room, MoveParams& params) {
-
+        auto &rc = registry.get_or_emplace<RoomContents>(room);
+        std::erase_if(rc.data, [&](auto e) { return e == ent; });
+        if(rc.data.empty()) registry.erase<RoomContents>(room);
+        registry.erase<Location>(ent);
     }
 
     void leavePOI(entt::entity ent, entt::entity poi, MoveParams& params) {
-
+        registry.erase<Location>(ent);
     }
 
     void equip(entt::entity ent, entt::entity item, MoveParams& params) {
@@ -273,7 +280,32 @@ namespace dbat {
     }
 
     void enterRoom(entt::entity ent, entt::entity room, MoveParams& params) {
+        auto &loc = registry.get_or_emplace<Location>(ent);
+        auto &d = params.dest.value();
+        loc.data = d.data;
+        loc.x = d.x;
+        loc.locationType = d.locationType;
+        if(!params.quiet) {
+            // TODO: announce movement here...
+        }
+        auto &rc = registry.get_or_emplace<RoomContents>(room);
+        rc.data.push_back(ent);
 
+        // greet triggers.
+        if(params.traverseType != TraverseType::System && !mobTriggerGreet(ent, params.dir)) {
+            // If it returned false, we must kick the character back to previous location if possible.
+            if(params.previousLocation) {
+                MoveParams mp = params;
+                mp.previousLocation = loc;
+                mp.dest = params.previousLocation;
+                mp.dir.reset(); // maybe need to reverse directions here...
+                // should probably set some kind of safeguard on MoveParams to prevent infinite ping-ponging.
+                moveTo(ent, mp);
+            }
+        } else {
+            // Rendering a room appearance is very expensive, so we'll only do it if we know there'll be someone listening.
+            if(registry.any_of<SessionHolder>(ent)) sendLine(ent, op::renderRoomAppearance(room, ent));
+        }
     }
 
     void enterPOI(entt::entity ent, entt::entity poi, MoveParams& params) {
@@ -284,6 +316,7 @@ namespace dbat {
     OpResult<> moveTo(entt::entity ent, MoveParams& params) {
 
         auto loc = registry.try_get<Location>(ent);
+        if(loc) params.previousLocation = *loc;
 
         if(params.dest) {
             auto &d = params.dest.value();
@@ -561,6 +594,7 @@ namespace dbat {
         }
 
         // Hooray, we made it!
+        setDirty(ent);
         return {true, std::nullopt};
 
     }
@@ -795,6 +829,34 @@ namespace dbat {
         auto sess = registry.try_get<SessionHolder>(ent);
         if(!sess) return;
         sess->data->sendLine(txt);
+    }
+
+    void handleBadMatch(entt::entity ent, const std::string& txt, std::unordered_map<std::string, std::string>& matches) {
+        sendLine(ent, "Sorry, that's not a command.");
+    }
+
+    void executeCommand(entt::entity ent, const std::string& txt) {
+        auto match_map = parseCommand(txt);
+        if(match_map.empty()) {
+            //handleBadMatch(txt, match_map);
+            return;
+        }
+        auto ckey = match_map["cmd"];
+        auto commands = getSortedCommands(ent);
+        for(auto &[key, cmd] : commands) {
+            if(!cmd->isAvailable(ent))
+                continue;
+            if(boost::iequals(ckey, key)) {
+                auto [can, err] = cmd->canExecute(ent, match_map);
+                if(!can) {
+                    sendLine(ent, fmt::format("Sorry, you can't do that: {}", err.value()));
+                    return;
+                }
+                cmd->execute(ent, match_map);
+                return;
+            }
+        }
+        handleBadMatch(ent, txt, match_map);
     }
 
 }

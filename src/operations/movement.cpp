@@ -128,6 +128,14 @@ namespace dbat::op {
         return travelToDestination(ent, dest);
     }
 
+    OpResult<> travelInDirectionMap(entt::entity ent, dir::DirectionId dir) {
+        return {false, "Not implemented yet."};
+    }
+
+    OpResult<> travelInDirectionSpace(entt::entity ent, dir::DirectionId dir) {
+        return {false, "Not implemented yet."};
+    }
+
     OpResult<> travelInDirection(entt::entity ent, dir::DirectionId dir) {
         auto loc = registry.try_get<Location>(ent);
         if(!loc) {

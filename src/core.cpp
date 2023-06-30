@@ -1,14 +1,13 @@
 #include "dbatk/core.h"
 #include "dbatk/connection.h"
 #include "dbatk/database.h"
-#include "dbatk/core.h"
-#include "dbatk/color.h"
-#include "dbatk/database.h"
 #include "dbatk/config.h"
 #include "dbatk/system.h"
 #include "dbatk/commands/connect.h"
 #include "dbatk/commands/login.h"
 #include "dbatk/commands/object.h"
+#include "dbatk/commands/admin.h"
+#include "dbatk/grammar.h"
 #include "dbatk/game.h"
 #include "sodium.h"
 
@@ -196,7 +195,9 @@ namespace dbat {
         cmd::registerConnectCommands();
         cmd::registerLoginCommands();
         cmd::registerObjectCommands();
+        cmd::registerAdminCommands();
         expandCommands();
+        grammar::registerWords();
         readyDatabase();
     }
 

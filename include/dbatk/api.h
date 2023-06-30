@@ -52,6 +52,7 @@ namespace dbat {
     struct MoveParams {
         bool force{false};
         bool quiet{false};
+        std::optional<Location> previousLocation;
         MoveType moveType{MoveType::Traverse};
         TraverseType traverseType{TraverseType::Physical};
         std::optional<Destination> dest;
@@ -139,5 +140,8 @@ namespace dbat {
 
     void sendText(entt::entity ent, const std::string& txt);
     void sendLine(entt::entity ent, const std::string& txt);
+
+    void handleBadMatch(entt::entity ent, const std::string& txt, std::unordered_map<std::string, std::string>& matches);
+    void executeCommand(entt::entity ent, const std::string& cmd);
 
 }

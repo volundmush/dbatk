@@ -17,54 +17,56 @@ namespace dbat::position {
 
     struct Position {
         [[nodiscard]] virtual std::size_t getId() = 0;
-        [[nodiscard]] virtual std::string_view getName() = 0;
+        [[nodiscard]] virtual std::string getName() = 0;
     };
 
     struct Dead : Position {
         [[nodiscard]] std::size_t getId() override {return DEAD;};
-        [[nodiscard]] std::string_view getName() override {return "Dead";}
+        [[nodiscard]] std::string getName() override {return "Dead";}
     };
 
     struct MortallyWounded : Position {
         [[nodiscard]] std::size_t getId() override {return MORTALLY_WOUNDED;};
-        [[nodiscard]] std::string_view getName() override {return "Mortally Wounded";}
+        [[nodiscard]] std::string getName() override {return "Mortally Wounded";}
     };
 
     struct Incapacitated : Position {
         [[nodiscard]] std::size_t getId() override {return INCAPACITATED;};
-        [[nodiscard]] std::string_view getName() override {return "Incapacitated";}
+        [[nodiscard]] std::string getName() override {return "Incapacitated";}
     };
 
     struct Stunned : Position {
         [[nodiscard]] std::size_t getId() override {return STUNNED;};
-        [[nodiscard]] std::string_view getName() override {return "Stunned";}
+        [[nodiscard]] std::string getName() override {return "Stunned";}
     };
 
     struct Sleeping : Position {
         [[nodiscard]] std::size_t getId() override {return SLEEPING;};
-        [[nodiscard]] std::string_view getName() override {return "Sleeping";}
+        [[nodiscard]] std::string getName() override {return "Sleeping";}
     };
 
     struct Resting : Position {
         [[nodiscard]] std::size_t getId() override {return RESTING;};
-        [[nodiscard]] std::string_view getName() override {return "Resting";}
+        [[nodiscard]] std::string getName() override {return "Resting";}
     };
 
     struct Sitting : Position {
         [[nodiscard]] std::size_t getId() override {return SITTING;};
-        [[nodiscard]] std::string_view getName() override {return "Sitting";}
+        [[nodiscard]] std::string getName() override {return "Sitting";}
     };
 
     struct Fighting : Position {
         [[nodiscard]] std::size_t getId() override {return FIGHTING;};
-        [[nodiscard]] std::string_view getName() override {return "Fighting";}
+        [[nodiscard]] std::string getName() override {return "Fighting";}
     };
 
     struct Standing : Position {
         [[nodiscard]] std::size_t getId() override {return STANDING;};
-        [[nodiscard]] std::string_view getName() override {return "Standing";}
+        [[nodiscard]] std::string getName() override {return "Standing";}
     };
 
     extern const std::vector<std::shared_ptr<Position>> positions;
+
+    std::optional<PositionId> getPositionId(const std::string& name, bool exact = true);
 
 }

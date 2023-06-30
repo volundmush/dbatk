@@ -65,6 +65,14 @@ namespace dbat {
 
     std::vector<std::pair<int64_t, entt::entity>> objects;
 
+    std::unordered_map<std::string, std::set<entt::entity>> protoTracker;
+
+    int64_t getProtoCount(const std::string& protoName) {
+        auto it = protoTracker.find(protoName);
+        if(it == protoTracker.end()) return 0;
+        return it->second.size();
+    }
+
     std::size_t getFreeObjectId() {
         std::size_t i = 0;
         for (; i < objects.size(); i++) {
@@ -90,6 +98,7 @@ namespace dbat {
 
     // the obj_regex is supposed to watch for patterns like #5 or #8721:1680642313 and capture the numbers.
     boost::regex obj_regex(R"(^#(?<id>\d+)(:(?<gen>\d+)?)?)");
+    boost::regex dg_regex(R"(^#(?<id>\d+)(:(?<gen>\d+))(?<slash>\/(?<room>\d+)?)?)");
 
     // This is true if the string matches obj_regex but has no gen.
     bool isObjRef(const std::string& str) {
@@ -101,6 +110,11 @@ namespace dbat {
     bool isObjId(const std::string& str) {
         boost::smatch match;
         return boost::regex_search(str, match, obj_regex) && match["gen"].matched;
+    }
+
+    bool isDgRef(const std::string& str) {
+        boost::smatch match;
+        return boost::regex_search(str, match, dg_regex);
     }
 
     entt::entity parseObjectId(const std::string& str) {
@@ -135,8 +149,7 @@ namespace dbat {
     std::default_random_engine randomEngine(randomDevice());
 
     std::unordered_set<ObjectId> dirty;
-    std::unordered_map<RoomId, entt::entity> legacyRooms;
-    std::unordered_map<RoomId, GridPoint> legacySpaceRooms;
+    std::unordered_map<RoomId, Destination> legacyRooms;
 
     GridPoint::GridPoint(const nlohmann::json& j) {
         x = j[0];
@@ -187,6 +200,44 @@ namespace dbat {
             return {false, "Passwords do not match"};
         }
         return {true, std::nullopt};
+    }
+
+    Location::Location(const nlohmann::json& j) {
+        if(j.contains("data")) {
+            ObjectId obj(j["data"]);
+            data = obj.getObject();
+        }
+        if(j.contains("locationType")) {
+            locationType = j["locationType"].get<LocationType>();
+        }
+        if(j.contains("x")) x = j["x"];
+        if(j.contains("y")) y = j["y"];
+        if(j.contains("z")) z = j["z"];
+    }
+
+    nlohmann::json Location::serialize() {
+        nlohmann::json j;
+        if(data != entt::null) j["data"] = registry.get<ObjectId>(data);
+        j["locationType"] = locationType;
+        if(x != 0.0) j["x"] = x;
+        if(y != 0.0) j["y"] = y;
+        if(z != 0.0) j["z"] = z;
+
+        return j;
+    }
+
+    std::string Location::roomString() {
+        if(locationType == LocationType::Area) {
+            return fmt::format("{}/{:.0f}", registry.get<ObjectId>(data).toString(), x);
+        }
+        if(locationType == LocationType::Expanse || locationType == LocationType::Map) {
+            return fmt::format("{}/{:.0f}:{:.0f}:{:.0f}", registry.get<ObjectId>(data).toString(), x, y, z);
+        }
+        if(locationType == LocationType::Space) {
+            return fmt::format("{}/{}:{}:{}", registry.get<ObjectId>(data).toString(), x, y, z);
+        }
+
+        return "";
     }
 
 }

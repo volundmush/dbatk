@@ -81,7 +81,12 @@ namespace dbat::cmd {
      */
     struct ObjPose : ObjCmd {
         [[nodiscard]] std::string getCmdName() override { return "pose"; };
-        [[nodiscard]] std::set<std::string> getAliases() override {return {";", "emote"};};
+        [[nodiscard]] std::set<std::string> getAliases() override {return {";"};};
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct ObjEmote : ObjCmd {
+        [[nodiscard]] std::string getCmdName() override { return "emote"; };
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 

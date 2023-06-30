@@ -5,7 +5,8 @@ namespace dbat::sex {
     const std::vector<std::shared_ptr<Sex>> sexes = {
             std::make_shared<Neuter>(),
             std::make_shared<Male>(),
-            std::make_shared<Female>()
+            std::make_shared<Female>(),
+            std::make_shared<Plural>()
     };
 
     Sex* findSex(std::size_t id, std::function<bool(std::shared_ptr<Sex>)> predicate) {

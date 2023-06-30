@@ -26,4 +26,5 @@ namespace dbat::config {
     extern std::size_t startingObject;
     extern RoomId startingRoom;
     extern int64_t legacySpaceId;
+    extern bool testMode;
 }

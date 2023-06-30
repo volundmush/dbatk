@@ -12,7 +12,6 @@ namespace dbat {
     extern GameLoop gameLoopStatus;
 
     extern std::vector<std::function<async<void>()>> gameStartupFuncs;
-    extern std::vector<std::function<async<void>(double)>> preHeartbeatFuncs, postHeartbeatFuncs;
 
     async<void> game();
 

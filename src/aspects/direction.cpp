@@ -43,7 +43,7 @@ namespace dbat::dir {
         }
 
         auto result = std::find_if(begin, end, [&check](const Direction& dir) {
-            return dir.getName() == check || dir.getAbbr() == check;
+            return dir.getName() == check || dir.getAbbr() == check || boost::istarts_with(dir.getName(), check);
         });
         if(result != end) {
             return result->getId();

@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/base.h"
+#include "dbatk/aspects/flags.h"
 
 namespace dbat::pref {
     enum PrefId : uint8_t {
@@ -66,4 +66,18 @@ namespace dbat::pref {
     };
 
     constexpr std::size_t numPrfFlags = 60;
+
+    class SimplePreferenceFlag : public BaseFlag {
+    public:
+        SimplePreferenceFlag(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
+    };
+
+    extern const std::vector<std::shared_ptr<SimplePreferenceFlag>> preferenceFlags;
+
+    std::optional<PrefId> getPreferenceFlagId(const std::string& name, bool exact = true);
 }

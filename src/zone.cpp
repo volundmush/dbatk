@@ -1,5 +1,8 @@
 #include "dbatk/zone.h"
 #include "dbatk/database.h"
+#include "dbatk/api.h"
+#include "dbatk/components.h"
+#include "dbatk/config.h"
 
 namespace dbat {
 
@@ -70,4 +73,381 @@ namespace dbat {
     }
 
     std::unordered_map<std::size_t, Zone> zones;
+
+    void Zone::onHeartbeat(double deltaTime) {
+        age -= deltaTime;
+        if(age <= 0.0) {
+            reset();
+            age = lifespan * 60.0;
+        }
+    }
+
+    void Zone::reset() {
+        logger->info("Resetting zone {}: {}", id, name);
+        int cmd_no = 0;
+        bool last_cmd = false;
+        entt::entity mob = entt::null;
+        entt::entity obj = entt::null;
+        entt::entity tmob = entt::null, tobj = entt::null;
+
+        RoomId rvnum, rrnum;
+        bool mob_load = false;
+        bool obj_load = false;
+
+        std::unordered_map<std::string, std::list<entt::entity>> spawns;
+        int line = 0;
+        for(auto &c : cmds) {
+            // comment
+            line++;
+            if(c.command == '*') {
+                last_cmd = false;
+                continue;
+            }
+            // Read a Mobile.
+            else if(c.command == 'M') {
+                auto protoName = fmt::format("npc:{}", c.arg1);
+                auto proto = getPrototype(protoName);
+                if(!proto) {
+                    logger->error("Line {}: Unable to find prototype for npc:{}", line, c.arg1);
+                    tobj = entt::null;
+                    continue;
+                }
+                auto count = getProtoCount(protoName);
+                if(count >= c.arg2) {
+                    last_cmd = false;
+                    tobj = entt::null;
+                    continue;
+                }
+                auto rand = randomNumber(1, 100);
+                if(!(rand >= c.arg5)) {
+                    last_cmd = false;
+                    tobj = entt::null;
+                    continue;
+                }
+                if(c.arg4 > 0) {
+                    auto view = registry.view<NPCVnum, LegacyLoadRoom>();
+                    int counter = 0;
+                    for(auto e : view) {
+                        auto &vnum = view.get<NPCVnum>(e);
+                        auto &loadRoom = view.get<LegacyLoadRoom>(e);
+                        if(vnum.data == c.arg1 && loadRoom.id == c.arg3) {
+                            counter++;
+                            if(counter >= c.arg4) break;
+                        }
+                        if(counter >= c.arg4) break;
+                    }
+                    if(counter >= c.arg4) {
+                        last_cmd = false;
+                        tobj = entt::null;
+                        continue;
+                    }
+                }
+                // All checks have passed; let's spawn it.
+                mob = createObject();
+                deserializeEntity(mob, proto.value());
+                auto &vnum = registry.get_or_emplace<NPCVnum>(mob);
+                vnum.data = c.arg1;
+                auto &loadRoom = registry.emplace<LegacyLoadRoom>(mob, c.arg3);
+                tmob = mob;
+                tobj = entt::null;
+                last_cmd = true;
+                mob_load = true;
+                MoveParams params;
+                params.traverseType = TraverseType::System;
+                params.moveType = MoveType::Traverse;
+                params.force = true;
+                params.quiet = true;
+                params.dest = legacyRooms[c.arg3];
+                moveTo(mob, params);
+                spawns[protoName].emplace_back(mob);
+            }
+            // Read an Object
+            else if(c.command == 'O') {
+                auto protoName = fmt::format("item:{}", c.arg1);
+                auto proto = getPrototype(protoName);
+                if(!proto) {
+                    logger->error("Line {}: Unable to find prototype for item:{}", line, c.arg1);
+                    tmob = entt::null;
+                    continue;
+                }
+                auto count = getProtoCount(protoName);
+                if(count >= c.arg2) {
+                    tmob = entt::null;
+                    last_cmd = false;
+                    continue;
+                }
+                auto rand = randomNumber(1, 100);
+                if(!(rand >= c.arg5)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                if(c.arg4 > 0) {
+                    auto view = registry.view<ItemVnum, LegacyLoadRoom>();
+                    int counter = 0;
+                    for(auto e : view) {
+                        auto &vnum = view.get<ItemVnum>(e);
+                        auto &loadRoom = view.get<LegacyLoadRoom>(e);
+                        if(vnum.data == c.arg1 && loadRoom.id == c.arg3) {
+                            counter++;
+                            if(counter >= c.arg4) break;
+                        }
+                        if(counter >= c.arg4) break;
+                    }
+                    if(counter >= c.arg4) {
+                        last_cmd = false;
+                        tmob = entt::null;
+                        continue;
+                    }
+                }
+                // All checks have passed; let's spawn it.
+                obj = createObject();
+                deserializeEntity(obj, proto.value());
+                auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
+                vnum.data = c.arg1;
+                auto &loadRoom = registry.emplace<LegacyLoadRoom>(obj, c.arg3);
+                tobj = obj;
+                tmob = entt::null;
+                last_cmd = true;
+                obj_load = true;
+                MoveParams params;
+                params.traverseType = TraverseType::System;
+                params.moveType = MoveType::Traverse;
+                params.force = true;
+                params.quiet = true;
+                params.dest = legacyRooms[c.arg3];
+                moveTo(obj, params);
+                spawns[protoName].emplace_back(obj);
+            }
+
+            // Spawn a c.arg1 to the last c.arg3 object...
+            else if(c.command == 'P') {
+                auto protoName = fmt::format("item:{}", c.arg1);
+                auto proto = getPrototype(protoName);
+                if(!proto) {
+                    logger->error("Unable to find prototype for item:{}", c.arg1);
+                    tmob = entt::null;
+                    continue;
+                }
+                auto count = getProtoCount(protoName);
+                if(count >= c.arg2) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                auto rand = randomNumber(1, 100);
+                if(!(rand >= c.arg5)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                auto checkName = fmt::format("item:{}", c.arg3);
+                auto check = spawns.find(checkName);
+                if(check == spawns.end()) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                auto found = check->second.back();
+
+                // All checks have passed; let's spawn it.
+                obj = createObject();
+                deserializeEntity(obj, proto.value());
+                auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
+                vnum.data = c.arg1;
+                tobj = obj;
+                tmob = entt::null;
+                last_cmd = true;
+                MoveParams params;
+                params.traverseType = TraverseType::System;
+                params.moveType = MoveType::Traverse;
+                params.force = true;
+                params.quiet = true;
+                Destination dest;
+                dest.data = found;
+                dest.locationType = LocationType::Inventory;
+                params.dest = dest;
+                moveTo(obj, params);
+                spawns[protoName].emplace_back(obj);
+            }
+
+            // load a c.arg1 item and give it to mob.
+            else if(c.command == 'G') {
+                auto protoName = fmt::format("item:{}", c.arg1);
+                auto proto = getPrototype(protoName);
+                if(!proto) {
+                    logger->error("Unable to find prototype for item:{}", c.arg1);
+                    tmob = entt::null;
+                    continue;
+                }
+                auto count = getProtoCount(protoName);
+                if(count >= c.arg2) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                auto rand = randomNumber(1, 100);
+                if(!(rand >= c.arg5)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                if(!registry.valid(mob)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                // All checks have passed; let's spawn it.
+                obj = createObject();
+                deserializeEntity(obj, proto.value());
+                auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
+                vnum.data = c.arg1;
+                tobj = obj;
+                tmob = entt::null;
+                last_cmd = true;
+                MoveParams params;
+                params.traverseType = TraverseType::System;
+                params.moveType = MoveType::Traverse;
+                params.force = true;
+                params.quiet = true;
+                Destination dest;
+                dest.data = mob;
+                dest.locationType = LocationType::Inventory;
+                params.dest = dest;
+                moveTo(obj, params);
+                spawns[protoName].emplace_back(obj);
+            }
+
+            // spawn a c.arg1 item to last mob's equipment, slot c.arg3
+            else if(c.command == 'E') {
+                auto protoName = fmt::format("item:{}", c.arg1);
+                auto proto = getPrototype(protoName);
+                if(!proto) {
+                    logger->error("Unable to find prototype for item:{}", c.arg1);
+                    tmob = entt::null;
+                    continue;
+                }
+                auto count = getProtoCount(protoName);
+                if(count >= c.arg2) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                auto rand = randomNumber(1, 100);
+                if(!(rand >= c.arg5)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+                if(!registry.valid(mob)) {
+                    last_cmd = false;
+                    tmob = entt::null;
+                    continue;
+                }
+
+                // TODO: Check if c.arg3 is a valid equipment slot...
+
+                // All checks have passed; let's spawn it.
+                obj = createObject();
+                deserializeEntity(obj, proto.value());
+                auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
+                vnum.data = c.arg1;
+                tobj = obj;
+                tmob = entt::null;
+                last_cmd = true;
+                MoveParams params;
+                params.traverseType = TraverseType::System;
+                params.moveType = MoveType::Traverse;
+                params.force = true;
+                params.quiet = true;
+                Destination dest;
+                dest.data = mob;
+                dest.locationType = LocationType::Equipment;
+                dest.x = c.arg3;
+                params.dest = dest;
+                moveTo(obj, params);
+                spawns[protoName].emplace_back(obj);
+            }
+
+            // manipulate a door.
+            else if(c.command == 'D') {
+                auto loc = legacyRooms.find(c.arg1);
+                if(loc == legacyRooms.end()) {
+                    logger->error("Unable to find room {} for door manipulation.", c.arg1);
+                    last_cmd = false;
+                    tmob = entt::null;
+                    tobj = entt::null;
+                    continue;
+                }
+                auto dest = loc->second;
+                if(dest.locationType != LocationType::Area) {
+                    logger->error("Unable to find room {} for door manipulation.", c.arg1);
+                    last_cmd = false;
+                    tmob = entt::null;
+                    tobj = entt::null;
+                    continue;
+                }
+                if(c.arg2 < 0 || c.arg2 >= dir::numAllDirs) {
+                    logger->error("Invalid direction {} for door manipulation.", c.arg2);
+                    last_cmd = false;
+                    tmob = entt::null;
+                    tobj = entt::null;
+                    continue;
+                }
+
+                auto &area = registry.get<Area>(dest.data);
+                auto room = area.data[c.arg1];
+                auto &doors = registry.get_or_emplace<Doors>(room);
+                auto &door = doors.data[static_cast<dir::DirectionId>(c.arg2)];
+                switch(c.arg3) {
+                    case 0:
+                        door.flags.reset(eflags::LOCKED);
+                        door.flags.reset(eflags::CLOSED);
+                        break;
+                    case 1:
+                        door.flags.set(eflags::CLOSED);
+                        door.flags.reset(eflags::LOCKED);
+                        break;
+                    case 2:
+                        door.flags.set(eflags::LOCKED);
+                        door.flags.set(eflags::CLOSED);
+                        break;
+                }
+                last_cmd = true;
+                tmob = entt::null;
+                tobj = entt::null;
+            }
+
+            // assign a Trigger (DgScript) to a mob or object or room...
+            else if(c.command == 'T') {
+                if(c.arg1 == 0 && registry.valid(tmob)) {
+                    // add trigger c.arg2 to tmob...
+                } else if(c.arg1 == 1 && registry.valid(tobj)) {
+                    // add trigger c.arg2 to tobj...
+                } else if(c.arg1 == 2) {
+                    // attach script c.arg2 to room c.arg3...
+                }
+            }
+
+            else if(c.command == 'V') {
+                if(c.arg1 == 0 && registry.valid(tmob)) {
+                    // add trigger c.arg2 to tmob...
+                } else if(c.arg1 == 1 && registry.valid(tobj)) {
+                    // add trigger c.arg2 to tobj...
+                } else if(c.arg1 == 2) {
+                    // attach script c.arg2 to room c.arg3...
+                }
+            }
+
+            else {
+                logger->error("Unknown command {} in dg_script.", c.command);
+                last_cmd = false;
+                tmob = entt::null;
+                tobj = entt::null;
+                continue;
+            }
+
+        }
+
+    }
 }

@@ -4,19 +4,20 @@
 #include "dbatk/aspects/direction.h"
 #include "dbatk/operations/movement.h"
 #include "dbatk/operations/information.h"
+#include "dbatk/message.h"
 
 namespace dbat::cmd {
     void ObjLook::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         auto loc = registry.try_get<Location>(ent);
         if(!loc) {
-            sendText(ent, "You are nowhere.");
+            sendLine(ent, "You are nowhere.");
             return;
         }
 
         if(loc->locationType == LocationType::Area) {
             auto &area = registry.get<Area>(loc->data);
             auto &room = area.data[loc->x];
-            sendText(ent, op::renderRoomAppearance(room, ent));
+            sendLine(ent, op::renderRoomAppearance(room, ent));
             return;
         }
     }
@@ -46,7 +47,7 @@ namespace dbat::cmd {
         if (boost::iequals(cmd, "move") || boost::iequals(cmd, "go") || boost::iequals(cmd, "mv")) {
             direction = input["args"];
             if(direction.empty()) {
-                sendText(ent, "Usage: move <direction>");
+                sendLine(ent, "Usage: move <direction>");
                 return;
             }
         } else {
@@ -55,7 +56,7 @@ namespace dbat::cmd {
 
         auto [res, err] = op::travelInDirection(ent, direction);
         if(!res) {
-            sendText(ent, err.value());
+            sendLine(ent, err.value());
             return;
         }
     }
@@ -66,15 +67,96 @@ namespace dbat::cmd {
     }
 
     void ObjSay::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to hear you.");
+            return;
+        }
+
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Say what?");
+
+        MsgFormat m(ent, fmt::format("$You() @W$conj(say), '@n@C{}@W'", args));
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            m.room(room);
+        } else {
+            // todo: handle these cases...
+        }
+        m.send();
 
     }
 
     void ObjPose::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to notice you.");
+            return;
+        }
 
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Pose what?");
+
+        MsgFormat m(ent, fmt::format("$You() {}", args));
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            m.room(room);
+        } else {
+            // todo: handle these cases...
+        }
+        m.send();
+    }
+
+    void ObjEmote::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to notice you.");
+            return;
+        }
+
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Emote what?");
+        // We need to perform some substitution on the string:
+        // &1 becomes: '@C
+        // &2 becomes: @N'
+
+        boost::replace_all(args, "&1", "'@C");
+        boost::replace_all(args, "&2", "@n'");
+
+        // TODO: Handle the *target stuff for roleplay later.
+
+        MsgFormat m(ent, fmt::format("$You() {}", args));
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            m.room(room);
+        } else {
+            // todo: handle these cases...
+        }
+        m.send();
     }
 
     void ObjSemipose::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to notice you.");
+            return;
+        }
 
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Semipose what?");
+
+        MsgFormat m(ent, fmt::format("$You(){}", args));
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            m.room(room);
+        } else {
+            // todo: handle these cases...
+        }
+        m.send();
     }
 
     void ObjWhisper::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
@@ -82,7 +164,18 @@ namespace dbat::cmd {
     }
 
     void ObjShout::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to hear you.");
+            return;
+        }
 
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Say what?");
+
+        MsgFormat m(ent, fmt::format("@y$You() $conj(shout), \"{}\"@n", args));
+        m.region(loc->data);
+        m.send();
     }
 
     void ObjGet::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
@@ -121,6 +214,7 @@ namespace dbat::cmd {
         commands.push_back(std::make_shared<ObjQuit>());
         commands.push_back(std::make_shared<ObjSay>());
         commands.push_back(std::make_shared<ObjPose>());
+        commands.push_back(std::make_shared<ObjEmote>());
         commands.push_back(std::make_shared<ObjSemipose>());
         commands.push_back(std::make_shared<ObjWhisper>());
         commands.push_back(std::make_shared<ObjShout>());

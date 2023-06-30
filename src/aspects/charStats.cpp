@@ -30,6 +30,30 @@ namespace dbat::cstat {
             // Virtual Stats follow...
     };
 
+    const std::unordered_map<std::string, StatId> characterStatNames = {
+            {"strength", STRENGTH},
+            {"intelligence", INTELLIGENCE},
+            {"wisdom", WISDOM},
+            {"dexterity", DEXTERITY},
+            {"constitution", CONSTITUTION},
+            {"speed", SPEED},
+
+            {"alignment", ALIGNMENT},
+            {"experience", EXPERIENCE},
+            {"level", LEVEL},
+            {"suppress", SUPPRESS},
+            {"armor", ARMOR},
+
+            {"powerlevel", POWERLEVEL},
+            {"stamina", STAMINA},
+            {"ki", KI},
+
+            {"damage_powerlevel", DAMAGE_POWERLEVEL},
+            {"damage_stamina", DAMAGE_STAMINA},
+            {"damage_ki", DAMAGE_KI},
+            {"damage_lifeforce", DAMAGE_LIFEFORCE},
+    };
+
     double BaseCharacterStat::getBase(entt::entity ent) {
         // if ID is within the NUM_CHAR_STATS range, get base from CharacterComponent, else return 0.0.
         auto id = getId();

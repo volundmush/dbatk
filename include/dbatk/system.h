@@ -37,10 +37,20 @@ namespace dbat {
         std::string getName() override {return "ProcessCommands";};
         int64_t getPriority() override {return 1000;};
         async<void> run(double deltaTime) override;
-        virtual bool checkHooks(entt::entity ent, std::unordered_map<std::string, std::string>& input);
-        virtual bool checkCommands(entt::entity ent, std::unordered_map<std::string, std::string>& input);
-        virtual void handleNotFound(entt::entity ent, std::unordered_map<std::string, std::string>& input);
-        virtual void handleBadMatch(entt::entity ent, std::unordered_map<std::string, std::string>& input);
+    };
+
+    class ProcessZones : public System {
+    public:
+        std::string getName() override {return "ProcessZones";};
+        int64_t getPriority() override {return 100;};
+        async<void> run(double deltaTime) override;
+    };
+
+    class ProcessDgScripts : public System {
+    public:
+        std::string getName() override {return "ProcessDgScripts";};
+        int64_t getPriority() override {return 50;};
+        async<void> run(double deltaTime) override;
     };
 
     extern std::vector<std::shared_ptr<System>> sortedSystems;

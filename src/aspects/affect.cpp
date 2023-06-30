@@ -1,0 +1,91 @@
+#include "dbatk/aspects/affect.h"
+
+namespace dbat::affect {
+
+    std::vector<std::shared_ptr<SimpleAffectFlag>> affectFlags = {
+            std::make_shared<SimpleAffectFlag>(0, "DONTUSE"),
+            std::make_shared<SimpleAffectFlag>(1, "BLIND"),
+            std::make_shared<SimpleAffectFlag>(2, "INVISIBLE"),
+            std::make_shared<SimpleAffectFlag>(3, "DETECT_ALIGN"),
+            std::make_shared<SimpleAffectFlag>(4, "DETECT_INVIS"),
+            std::make_shared<SimpleAffectFlag>(5, "DETECT_MAGIC"),
+            std::make_shared<SimpleAffectFlag>(6, "SENSE_LIFE"),
+            std::make_shared<SimpleAffectFlag>(7, "WATERWALK"),
+            std::make_shared<SimpleAffectFlag>(8, "SANCTUARY"),
+            std::make_shared<SimpleAffectFlag>(9, "GROUP"),
+            std::make_shared<SimpleAffectFlag>(10, "CURSE"),
+            std::make_shared<SimpleAffectFlag>(11, "INFRAVISION"),
+            std::make_shared<SimpleAffectFlag>(12, "POISON"),
+            std::make_shared<SimpleAffectFlag>(13, "WEAKENED_STATE"),
+            std::make_shared<SimpleAffectFlag>(14, "PROTECT_GOOD"),
+            std::make_shared<SimpleAffectFlag>(15, "SLEEP"),
+            std::make_shared<SimpleAffectFlag>(16, "NOTRACK"),
+            std::make_shared<SimpleAffectFlag>(17, "UNDEAD"),
+            std::make_shared<SimpleAffectFlag>(18, "PARALYZE"),
+            std::make_shared<SimpleAffectFlag>(19, "SNEAK"),
+            std::make_shared<SimpleAffectFlag>(20, "HIDE"),
+            std::make_shared<SimpleAffectFlag>(21, "UNUSED20"),
+            std::make_shared<SimpleAffectFlag>(22, "CHARM"),
+            std::make_shared<SimpleAffectFlag>(23, "FLYING"),
+            std::make_shared<SimpleAffectFlag>(24, "WATERBREATH"),
+            std::make_shared<SimpleAffectFlag>(25, "ANGELIC"),
+            std::make_shared<SimpleAffectFlag>(26, "ETHEREAL"),
+            std::make_shared<SimpleAffectFlag>(27, "MAGICONLY"),
+            std::make_shared<SimpleAffectFlag>(28, "NEXTPARTIAL"),
+            std::make_shared<SimpleAffectFlag>(29, "NEXTNOACTION"),
+            std::make_shared<SimpleAffectFlag>(30, "STUNNED"),
+            std::make_shared<SimpleAffectFlag>(31, "TAMED"),
+            std::make_shared<SimpleAffectFlag>(32, "CDEATH"),
+            std::make_shared<SimpleAffectFlag>(33, "SPIRIT"),
+            std::make_shared<SimpleAffectFlag>(34, "STONESKIN"),
+            std::make_shared<SimpleAffectFlag>(35, "SUMMONED"),
+            std::make_shared<SimpleAffectFlag>(36, "CELESTIAL"),
+            std::make_shared<SimpleAffectFlag>(37, "FIENDISH"),
+            std::make_shared<SimpleAffectFlag>(38, "FIRE_SHIELD"),
+            std::make_shared<SimpleAffectFlag>(39, "LOW_LIGHT"),
+            std::make_shared<SimpleAffectFlag>(40, "ZANZOKEN"),
+            std::make_shared<SimpleAffectFlag>(41, "KNOCKED"),
+            std::make_shared<SimpleAffectFlag>(42, "MIGHT"),
+            std::make_shared<SimpleAffectFlag>(43, "FLEX"),
+            std::make_shared<SimpleAffectFlag>(44, "GENIUS"),
+            std::make_shared<SimpleAffectFlag>(45, "BLESS"),
+            std::make_shared<SimpleAffectFlag>(46, "BURNT"),
+            std::make_shared<SimpleAffectFlag>(47, "BURNED"),
+            std::make_shared<SimpleAffectFlag>(48, "MBREAK"),
+            std::make_shared<SimpleAffectFlag>(49, "HASS"),
+            std::make_shared<SimpleAffectFlag>(50, "FUTURE"),
+            std::make_shared<SimpleAffectFlag>(51, "PARA"),
+            std::make_shared<SimpleAffectFlag>(52, "INFUSE"),
+            std::make_shared<SimpleAffectFlag>(53, "ENLIGHTEN"),
+            std::make_shared<SimpleAffectFlag>(54, "FROZEN"),
+            std::make_shared<SimpleAffectFlag>(55, "FIRESHIELD"),
+            std::make_shared<SimpleAffectFlag>(56, "ENSNARED"),
+            std::make_shared<SimpleAffectFlag>(57, "HAYASA"),
+            std::make_shared<SimpleAffectFlag>(58, "PURSUIT"),
+            std::make_shared<SimpleAffectFlag>(59, "WITHER"),
+            std::make_shared<SimpleAffectFlag>(60, "HYDROZAP"),
+            std::make_shared<SimpleAffectFlag>(61, "POSITION"),
+            std::make_shared<SimpleAffectFlag>(62, "SHOCKED"),
+            std::make_shared<SimpleAffectFlag>(63, "METAMORPH"),
+            std::make_shared<SimpleAffectFlag>(64, "HEALGLOW"),
+            std::make_shared<SimpleAffectFlag>(65, "EARMOR"),
+            std::make_shared<SimpleAffectFlag>(66, "ECHAINS"),
+            std::make_shared<SimpleAffectFlag>(67, "WUNJO"),
+            std::make_shared<SimpleAffectFlag>(68, "POTENT"),
+            std::make_shared<SimpleAffectFlag>(69, "ASHED"),
+            std::make_shared<SimpleAffectFlag>(70, "PUKED"),
+            std::make_shared<SimpleAffectFlag>(71, "LIQUEFIED"),
+            std::make_shared<SimpleAffectFlag>(72, "SHELL"),
+            std::make_shared<SimpleAffectFlag>(73, "IMMUNITY"),
+            std::make_shared<SimpleAffectFlag>(74, "SPIRITCONTROL")
+    };
+
+    std::optional<AffectId> getAffectId(const std::string& name, bool exact) {
+        auto found = partialMatch(name, affectFlags.begin(), affectFlags.end(), exact, [](const auto& flag) { return flag->getName(); });
+        if(found != affectFlags.end()) {
+            return static_cast<AffectId>((*found)->getId());
+        }
+        return std::nullopt;
+    }
+
+}

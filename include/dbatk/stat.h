@@ -16,7 +16,7 @@ namespace dbat {
         [[nodiscard]] virtual std::optional<double> getMinimum(entt::entity ent) const {return std::nullopt;};
         [[nodiscard]] virtual std::optional<double> getMaximum(entt::entity ent) const {return std::nullopt;};
         // Set the value in storage.
-        [[nodiscard]] double setBase(entt::entity ent, double value) {
+        double setBase(entt::entity ent, double value) {
 
             if(auto min = getMinimumBase(ent)) {
                 if(value < *min) value = *min;
@@ -31,7 +31,7 @@ namespace dbat {
             return value;
         }
         // Increase/decrease the value in storage by a certain amount.
-        [[nodiscard]] double modBase(entt::entity ent, double value) {
+        double modBase(entt::entity ent, double value) {
             auto newVal = getBase(ent) + value;
             return setBase(ent, newVal);
         }

@@ -107,7 +107,7 @@ namespace dbat {
             handleBadMatch(text, match_map);
             return;
         }
-        auto self = std::static_pointer_cast<Connection>(shared_from_this());
+        auto self = shared_from_this();
         auto ckey = match_map["cmd"];
         for(auto &[key, cmd] : expandedConnectCommandRegistry) {
             if(!cmd->isAvailable(self))
@@ -131,7 +131,7 @@ namespace dbat {
             handleBadMatch(text, match_map);
             return;
         }
-        auto self = std::static_pointer_cast<Connection>(shared_from_this());
+        auto self = shared_from_this();
         auto ckey = match_map["cmd"];
         for(auto &[key, cmd] : expandedLoginCommandRegistry) {
             if(!cmd->isAvailable(self))
@@ -361,7 +361,7 @@ namespace dbat {
         } else {
             auto id = getObjectId(ent);
             // The character has no session, so we need to create one and join the clientConnection to it.
-            session = makeSession(id, account, ent);
+            session = std::make_shared<Session>(id, account, ent);
             sessions[id] = session;
             auto &sholder = registry.emplace<SessionHolder>(ent);
             sholder.data = session;

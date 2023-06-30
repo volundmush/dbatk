@@ -210,7 +210,7 @@ namespace dbat::cstat {
     // Virtual Stats
     // Level first. It is 1 + (experience / 1000) rounded down.
 
-
     extern const std::unordered_map<StatId, std::shared_ptr<BaseCharacterStat>> characterStats;
+    extern const std::unordered_map<std::string, StatId> characterStatNames;
 
 }

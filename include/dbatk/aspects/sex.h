@@ -5,7 +5,8 @@ namespace dbat::sex {
     enum SexId : uint8_t {
         NEUTER = 0,
         MALE = 1,
-        FEMALE = 2
+        FEMALE = 2,
+        PLURAL = 3
     };
 
     struct Sex {
@@ -26,6 +27,11 @@ namespace dbat::sex {
     struct Female : Sex {
         [[nodiscard]] std::size_t getId() override {return 2;};
         [[nodiscard]] std::string getName() override {return "Female";}
+    };
+
+    struct Plural : Sex {
+        [[nodiscard]] std::size_t getId() override {return 3;};
+        [[nodiscard]] std::string getName() override {return "Plural";}
     };
 
     Sex* findSex(std::size_t id, std::function<bool(std::shared_ptr<Sex>)> predicate = [](std::shared_ptr<Sex>) { return true; });
