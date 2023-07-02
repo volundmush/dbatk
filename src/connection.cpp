@@ -86,7 +86,7 @@ namespace dbat {
     void Connection::sendText(const std::string &text) {
         Message m;
         m.cmd = "text";
-        m.args = {renderAnsi(text, capabilities.colorType)};
+        m.args = {renderAnsi(text + "@n", capabilities.colorType)};
         sendMessage(m);
     }
 

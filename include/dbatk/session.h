@@ -55,6 +55,8 @@ namespace dbat {
         std::chrono::system_clock::time_point getCreated() const { return created; };
         ObjectId getId() const { return id; };
 
+        std::size_t getNumClients() const { return clients.size(); };
+
     protected:
         // The ID of the character is the ID of the session.
         ObjectId id;

@@ -184,6 +184,11 @@ namespace dbat {
         void cmdUnset(std::unordered_map<std::string, std::string>& matched);
         void cmdAttach(std::unordered_map<std::string, std::string>& matched);
         void cmdDetach(std::unordered_map<std::string, std::string>& matched);
+        void cmdSend(std::unordered_map<std::string, std::string>& matched);
+        void cmdDamage(std::unordered_map<std::string, std::string>& matched);
+        void cmdEchoaround(std::unordered_map<std::string, std::string>& matched);
+        void cmdAsound(std::unordered_map<std::string, std::string>& matched);
+        void cmdRecho(std::unordered_map<std::string, std::string>& matched);
 
     };
 

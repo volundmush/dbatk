@@ -171,9 +171,6 @@ namespace dbat {
     // deleted and the ID being reused.
     extern std::vector<std::pair<int64_t, entt::entity>> objects;
 
-    extern std::unordered_map<std::string, std::set<entt::entity>> protoTracker;
-    int64_t getProtoCount(const std::string& protoName);
-
     std::size_t getFreeObjectId();
 
     int64_t getUnixTimestamp();
@@ -197,46 +194,40 @@ namespace dbat {
     }
 
     enum class LocationType : int8_t {
-        Inventory = 0,
-        Equipment = 1,
-        Area = 2,
-        Expanse = 3,
-        Map = 4,
-        Space = 5
+        Absolute = 0,
+        Inventory = 1,
+        Equipment = 2,
+        Area = 3,
+        Expanse = 4,
+        Map = 5,
+        Space = 6
     };
 
+    /*
+     * Since we have a lot of different types of locations, we need a way to represent them all.
+     * As locations are also used for destinations and targeting of commands, render requests, or
+     * the like, this struct can also be thought of as a 'Target' specifier.
+     * */
     struct Location {
         Location() = default;
         explicit Location(const nlohmann::json &j);
         entt::entity data{entt::null};
-        LocationType locationType{LocationType::Inventory};
+        LocationType locationType{LocationType::Absolute};
         // These coordinates serve multiple purposes. For an Area/Expanse/Map/Space, they are
         // the coordinates of the object in that plane.
-        // For Inventory, they are unused (but I can see a case of using them for sorting or organization,
+        // For Inventory and Absolute, they are unused (but I can see a case of using them for sorting or organization,
         // or maybe separate inventory pockets.) For equipment, x is used for the wear location.
         double x{0.0}, y{0.0}, z{0.0};
         nlohmann::json serialize();
         std::string roomString();
-    };
-
-    struct Destination : Location {
-        using Location::Location;
-        explicit Destination(const Location& l) : Location(l) {};
-        // set it so that = operator can copy from a Location..
-        Destination& operator=(const Location& l) {
-            data = l.data;
-            locationType = l.locationType;
-            x = l.x;
-            y = l.y;
-            z = l.z;
-            return *this;
-        }
+        entt::entity getRoom();
+        entt::entity findRoom(RoomId id);
     };
 
     // For backwards compatability with the old DBAT code, we have this map which effectively replicates
     // the old 'world' variable. It is filled with the rooms from Objects that are marked GLOBALROOM.
     // Beware of ID collisions when setting objects GLOBALROOM.
-    extern std::unordered_map<RoomId, Destination> legacyRooms;
+    extern std::unordered_map<RoomId, Location> legacyRooms;
 
 
     template <typename Iterator, typename Key = std::function<std::string(typename std::iterator_traits<Iterator>::value_type)>>

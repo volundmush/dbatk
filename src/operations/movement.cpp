@@ -3,7 +3,7 @@
 #include "dbatk/components.h"
 
 namespace dbat::op {
-    OpResult<> travelToDestination(entt::entity ent, const Destination& dest) {
+    OpResult<> travelToDestination(entt::entity ent, const Location& dest) {
         MoveParams params;
         params.dest = dest;
         params.moveType = MoveType::Traverse;
@@ -44,7 +44,7 @@ namespace dbat::op {
                 // TODO: Door data exists and we should check its state...
             }
         }
-        Destination dest = exit->second;
+        Location dest = exit->second;
         if(dest.data == entt::null) {
             dest.data = loc->data;
         }
@@ -63,7 +63,7 @@ namespace dbat::op {
             if(exits) {
                 auto exit = exits->data.find(dir);
                 if(exit != exits->data.end()) {
-                    Destination dest = exit->second;
+                    Location dest = exit->second;
                     if(dest.data == entt::null) {
                         dest.data = loc->data;
                     }
@@ -119,7 +119,7 @@ namespace dbat::op {
             return {false, "You can't go that way."};
         }
         // Good to go, let's move!
-        Destination dest;
+        Location dest;
         dest.data = loc->data;
         dest.x = gp.x;
         dest.y = gp.y;

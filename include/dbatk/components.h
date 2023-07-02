@@ -25,7 +25,7 @@
 #include "dbatk/aspects/skill.h"
 #include "dbatk/aspects/size.h"
 #include "dbatk/aspects/terrain.h"
-#include "dbatk/aspects/wear.h"
+#include "dbatk/aspects/charWear.h"
 
 
 namespace dbat {
@@ -42,8 +42,8 @@ namespace dbat {
         using StringView::StringView;
     };
 
-    struct ShortDescription : StringView {
-        using StringView::StringView;
+    struct Keywords {
+        std::string_view data;
     };
 
     struct RoomDescription : StringView {
@@ -87,7 +87,7 @@ namespace dbat {
     // may do those differently, but they are likely a Component attached to the entity
     // in the unordered_map of Area.
     struct Area {
-        std::unordered_map<RoomId, entt::entity> data{};
+        std::map<RoomId, entt::entity> data{};
     };
 
     // Meant to be used by the entt::entity within the Area component map.
@@ -205,7 +205,7 @@ namespace dbat {
     };
 
     struct Exits {
-        std::unordered_map<dir::DirectionId, Destination> data{};
+        std::unordered_map<dir::DirectionId, Location> data{};
     };
 
     struct Door {
@@ -259,12 +259,9 @@ namespace dbat {
         int damType;  // e.g., VAL_WEAPON_DAMTYPE
     };
 
-    struct WornData {
+    struct CharWornData {
         // The positions that the item can be worn on.
-        std::bitset<wear::numWearFlags> wearFlags;
-        // Where the item is currently worn, if anywhere.
-        std::optional<int> wornOn;
-
+        std::bitset<cwear::numCharWearFlags> data;
     };
 
     struct FoodData {

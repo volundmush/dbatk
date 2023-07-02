@@ -4,7 +4,7 @@
 #include "dbatk/aspects/direction.h"
 
 namespace dbat::op {
-    OpResult<> travelToDestination(entt::entity ent, const Destination& dest);
+    OpResult<> travelToDestination(entt::entity ent, const Location& dest);
     OpResult<> travelInDirection(entt::entity ent, dir::DirectionId dir);
     OpResult<> travelInDirectionArea(entt::entity ent, dir::DirectionId dir);
     OpResult<> travelInDirectionExpanse(entt::entity ent, dir::DirectionId dir);

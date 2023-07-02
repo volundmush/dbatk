@@ -55,7 +55,7 @@ namespace dbat {
         std::optional<Location> previousLocation;
         MoveType moveType{MoveType::Traverse};
         TraverseType traverseType{TraverseType::Physical};
-        std::optional<Destination> dest;
+        std::optional<Location> dest;
         // When exits or directions are being used, direction tells which way the character is going.
         // If they used a north exit, then dir is North.
         std::optional<dir::DirectionId> dir;
@@ -116,8 +116,8 @@ namespace dbat {
     std::string getLookDescription(entt::entity ent);
     void setLookDescription(entt::entity ent, const std::string& txt);
 
-    std::string getDisplayName(entt::entity ent, entt::entity looker);
-    std::string getRoomLine(entt::entity ent, entt::entity looker);
+    std::string getDisplayName(entt::entity ent, entt::entity looker, bool matrix=false);
+    std::string getRoomLine(entt::entity ent, entt::entity looker, bool matrix=false);
     std::string renderAppearance(entt::entity ent, entt::entity looker);
 
     void atDeleteObject(entt::entity ent);
@@ -134,7 +134,7 @@ namespace dbat {
 
     std::optional<std::vector<double>> parseCoordinates(const std::string& str);
 
-    std::optional<Destination> validDestination(entt::entity ent, const std::string& str);
+    std::optional<Location> validDestination(entt::entity ent, const std::string& str);
 
     std::vector<entt::entity> getRoomContents(entt::entity ent);
 
@@ -143,5 +143,7 @@ namespace dbat {
 
     void handleBadMatch(entt::entity ent, const std::string& txt, std::unordered_map<std::string, std::string>& matches);
     void executeCommand(entt::entity ent, const std::string& cmd);
+
+    std::vector<entt::entity> getAncestors(entt::entity ent);
 
 }

@@ -90,6 +90,12 @@ namespace dbat::cmd {
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 
+    struct ObjEcho : ObjCmd {
+        [[nodiscard]] std::string getCmdName() override { return "echo"; };
+        [[nodiscard]] std::set<std::string> getAliases() override {return {"emit", "|"};};
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
     /*
      * The SEMIPOSE command is used to emote, but slightly different in that it lacks the space.
      * This is good for slightly differently formatted things, like adding an apostrophe's.

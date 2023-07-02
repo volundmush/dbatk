@@ -1,5 +1,6 @@
 #include "dbatk/base.h"
 #include "sodium.h"
+#include "dbatk/components.h"
 
 namespace dbat {
     std::unique_ptr<boost::asio::io_context> executor;
@@ -64,14 +65,6 @@ namespace dbat {
     }
 
     std::vector<std::pair<int64_t, entt::entity>> objects;
-
-    std::unordered_map<std::string, std::set<entt::entity>> protoTracker;
-
-    int64_t getProtoCount(const std::string& protoName) {
-        auto it = protoTracker.find(protoName);
-        if(it == protoTracker.end()) return 0;
-        return it->second.size();
-    }
 
     std::size_t getFreeObjectId() {
         std::size_t i = 0;
@@ -149,7 +142,7 @@ namespace dbat {
     std::default_random_engine randomEngine(randomDevice());
 
     std::unordered_set<ObjectId> dirty;
-    std::unordered_map<RoomId, Destination> legacyRooms;
+    std::unordered_map<RoomId, Location> legacyRooms;
 
     GridPoint::GridPoint(const nlohmann::json& j) {
         x = j[0];
@@ -238,6 +231,22 @@ namespace dbat {
         }
 
         return "";
+    }
+
+    entt::entity Location::findRoom(RoomId id) {
+        if(locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(data);
+            auto find = area.data.find(id);
+            if(find != area.data.end()) return find->second;
+        }
+        return entt::null;
+    }
+
+    entt::entity Location::getRoom() {
+        if(locationType == LocationType::Area) {
+            return findRoom(x);
+        }
+        return entt::null;
     }
 
 }

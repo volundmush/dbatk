@@ -7,6 +7,16 @@ namespace dbat {
 
     extern std::vector<std::string> schema;
 
+    struct PrototypeData {
+        std::string name;
+        nlohmann::json data;
+        std::size_t instanceCount;
+        entt::entity spawn();
+        std::string entityName();
+    };
+
+    extern std::unordered_map<std::string, std::shared_ptr<PrototypeData>> prototypes;
+
     template<size_t N>
     nlohmann::json bitsetToJson(const std::bitset<N>& bits) {
         nlohmann::json json = nlohmann::json::array();
@@ -34,6 +44,8 @@ namespace dbat {
     void processDirty();
 
     void readyDatabase();
+
+    void loadPrototypes();
 
     void loadDatabase();
 

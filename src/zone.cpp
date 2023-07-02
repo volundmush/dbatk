@@ -46,6 +46,8 @@ namespace dbat {
         if(reset_mode) j["reset_mode"] = reset_mode;
         if(!min_level) j["min_level"] = min_level;
         if(!max_level) j["max_level"] = max_level;
+        j["bot"] = bot;
+        j["top"] = top;
 
         if(flags.any()) j["flags"] = bitsetToJson(flags);
 
@@ -63,6 +65,8 @@ namespace dbat {
         if(j.contains("reset_mode")) reset_mode = j["reset_mode"];
         if(j.contains("min_level")) min_level = j["min_level"];
         if(j.contains("max_level")) max_level = j["max_level"];
+        if(j.contains("bot")) bot = j["bot"];
+        if(j.contains("top")) top = j["top"];
         if(j.contains("flags")) jsonToBitset(j["flags"], flags);
 
         if(j.contains("cmds")) {
@@ -72,7 +76,7 @@ namespace dbat {
         }
     }
 
-    std::unordered_map<std::size_t, Zone> zones;
+    std::map<std::size_t, Zone> zones;
 
     void Zone::onHeartbeat(double deltaTime) {
         age -= deltaTime;
@@ -83,7 +87,7 @@ namespace dbat {
     }
 
     void Zone::reset() {
-        logger->info("Resetting zone {}: {}", id, name);
+        //logger->info("Resetting zone {}: {}", id, name);
         int cmd_no = 0;
         bool last_cmd = false;
         entt::entity mob = entt::null;
@@ -106,14 +110,14 @@ namespace dbat {
             // Read a Mobile.
             else if(c.command == 'M') {
                 auto protoName = fmt::format("npc:{}", c.arg1);
-                auto proto = getPrototype(protoName);
-                if(!proto) {
+                auto proto = prototypes.find(protoName);
+                if(proto == prototypes.end()) {
                     logger->error("Line {}: Unable to find prototype for npc:{}", line, c.arg1);
                     tobj = entt::null;
                     continue;
                 }
-                auto count = getProtoCount(protoName);
-                if(count >= c.arg2) {
+                auto count = proto->second->instanceCount;
+                if(proto->second->instanceCount >= c.arg2) {
                     last_cmd = false;
                     tobj = entt::null;
                     continue;
@@ -143,11 +147,11 @@ namespace dbat {
                     }
                 }
                 // All checks have passed; let's spawn it.
-                mob = createObject();
-                deserializeEntity(mob, proto.value());
+                mob = proto->second->spawn();
                 auto &vnum = registry.get_or_emplace<NPCVnum>(mob);
                 vnum.data = c.arg1;
-                auto &loadRoom = registry.emplace<LegacyLoadRoom>(mob, c.arg3);
+                auto &loadRoom = registry.emplace<LegacyLoadRoom>(mob);
+                loadRoom.id = c.arg3;
                 tmob = mob;
                 tobj = entt::null;
                 last_cmd = true;
@@ -164,13 +168,13 @@ namespace dbat {
             // Read an Object
             else if(c.command == 'O') {
                 auto protoName = fmt::format("item:{}", c.arg1);
-                auto proto = getPrototype(protoName);
-                if(!proto) {
+                auto proto = prototypes.find(protoName);
+                if(proto == prototypes.end()) {
                     logger->error("Line {}: Unable to find prototype for item:{}", line, c.arg1);
                     tmob = entt::null;
                     continue;
                 }
-                auto count = getProtoCount(protoName);
+                auto count = proto->second->instanceCount;
                 if(count >= c.arg2) {
                     tmob = entt::null;
                     last_cmd = false;
@@ -201,11 +205,11 @@ namespace dbat {
                     }
                 }
                 // All checks have passed; let's spawn it.
-                obj = createObject();
-                deserializeEntity(obj, proto.value());
+                obj = proto->second->spawn();
                 auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
                 vnum.data = c.arg1;
-                auto &loadRoom = registry.emplace<LegacyLoadRoom>(obj, c.arg3);
+                auto &loadRoom = registry.emplace<LegacyLoadRoom>(obj);
+                loadRoom.id = c.arg3;
                 tobj = obj;
                 tmob = entt::null;
                 last_cmd = true;
@@ -223,13 +227,13 @@ namespace dbat {
             // Spawn a c.arg1 to the last c.arg3 object...
             else if(c.command == 'P') {
                 auto protoName = fmt::format("item:{}", c.arg1);
-                auto proto = getPrototype(protoName);
-                if(!proto) {
+                auto proto = prototypes.find(protoName);
+                if(proto == prototypes.end()) {
                     logger->error("Unable to find prototype for item:{}", c.arg1);
                     tmob = entt::null;
                     continue;
                 }
-                auto count = getProtoCount(protoName);
+                auto count = proto->second->instanceCount;
                 if(count >= c.arg2) {
                     last_cmd = false;
                     tmob = entt::null;
@@ -251,8 +255,7 @@ namespace dbat {
                 auto found = check->second.back();
 
                 // All checks have passed; let's spawn it.
-                obj = createObject();
-                deserializeEntity(obj, proto.value());
+                obj = proto->second->spawn();
                 auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
                 vnum.data = c.arg1;
                 tobj = obj;
@@ -263,7 +266,7 @@ namespace dbat {
                 params.moveType = MoveType::Traverse;
                 params.force = true;
                 params.quiet = true;
-                Destination dest;
+                Location dest;
                 dest.data = found;
                 dest.locationType = LocationType::Inventory;
                 params.dest = dest;
@@ -274,13 +277,13 @@ namespace dbat {
             // load a c.arg1 item and give it to mob.
             else if(c.command == 'G') {
                 auto protoName = fmt::format("item:{}", c.arg1);
-                auto proto = getPrototype(protoName);
-                if(!proto) {
+                auto proto = prototypes.find(protoName);
+                if(proto == prototypes.end()) {
                     logger->error("Unable to find prototype for item:{}", c.arg1);
                     tmob = entt::null;
                     continue;
                 }
-                auto count = getProtoCount(protoName);
+                auto count = proto->second->instanceCount;
                 if(count >= c.arg2) {
                     last_cmd = false;
                     tmob = entt::null;
@@ -298,8 +301,7 @@ namespace dbat {
                     continue;
                 }
                 // All checks have passed; let's spawn it.
-                obj = createObject();
-                deserializeEntity(obj, proto.value());
+                obj = proto->second->spawn();
                 auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
                 vnum.data = c.arg1;
                 tobj = obj;
@@ -310,7 +312,7 @@ namespace dbat {
                 params.moveType = MoveType::Traverse;
                 params.force = true;
                 params.quiet = true;
-                Destination dest;
+                Location dest;
                 dest.data = mob;
                 dest.locationType = LocationType::Inventory;
                 params.dest = dest;
@@ -321,13 +323,13 @@ namespace dbat {
             // spawn a c.arg1 item to last mob's equipment, slot c.arg3
             else if(c.command == 'E') {
                 auto protoName = fmt::format("item:{}", c.arg1);
-                auto proto = getPrototype(protoName);
-                if(!proto) {
+                auto proto = prototypes.find(protoName);
+                if(proto == prototypes.end()) {
                     logger->error("Unable to find prototype for item:{}", c.arg1);
                     tmob = entt::null;
                     continue;
                 }
-                auto count = getProtoCount(protoName);
+                auto count = proto->second->instanceCount;
                 if(count >= c.arg2) {
                     last_cmd = false;
                     tmob = entt::null;
@@ -348,8 +350,7 @@ namespace dbat {
                 // TODO: Check if c.arg3 is a valid equipment slot...
 
                 // All checks have passed; let's spawn it.
-                obj = createObject();
-                deserializeEntity(obj, proto.value());
+                obj = proto->second->spawn();
                 auto &vnum = registry.get_or_emplace<ItemVnum>(obj);
                 vnum.data = c.arg1;
                 tobj = obj;
@@ -360,7 +361,7 @@ namespace dbat {
                 params.moveType = MoveType::Traverse;
                 params.force = true;
                 params.quiet = true;
-                Destination dest;
+                Location dest;
                 dest.data = mob;
                 dest.locationType = LocationType::Equipment;
                 dest.x = c.arg3;

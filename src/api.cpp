@@ -13,10 +13,6 @@ namespace dbat {
         setBaseText<Name>(ent, txt);
     }
 
-    void setShortDescription(entt::entity ent, const std::string &txt) {
-        setBaseText<ShortDescription>(ent, txt);
-    }
-
     void setRoomDescription(entt::entity ent, const std::string &txt) {
         setBaseText<RoomDescription>(ent, txt);
     }
@@ -31,10 +27,6 @@ namespace dbat {
         return "Unnamed Object";
     }
 
-    std::string getShortDescription(entt::entity ent) {
-        return std::string(getBaseText<ShortDescription>(ent));
-    }
-
     std::string getRoomDescription(entt::entity ent) {
         return std::string(getBaseText<RoomDescription>(ent));
     }
@@ -43,9 +35,9 @@ namespace dbat {
         return std::string(getBaseText<LookDescription>(ent));
     }
 
-    std::string getDisplayName(entt::entity ent, entt::entity looker) {
+    std::string getDisplayName(entt::entity ent, entt::entity looker, bool matrix) {
         if(registry.any_of<Item, NPC>(ent)) {
-            return getShortDescription(ent);
+            return getName(ent);
         }
 
         if(registry.any_of<Character>(ent)) {
@@ -58,7 +50,7 @@ namespace dbat {
         return getName(ent);
     }
 
-    std::string getRoomLine(entt::entity ent, entt::entity looker) {
+    std::string getRoomLine(entt::entity ent, entt::entity looker, bool matrix) {
         if(registry.any_of<Item, NPC>(ent)) {
             return getRoomDescription(ent);
         }
@@ -304,7 +296,9 @@ namespace dbat {
             }
         } else {
             // Rendering a room appearance is very expensive, so we'll only do it if we know there'll be someone listening.
-            if(registry.any_of<SessionHolder>(ent)) sendLine(ent, op::renderRoomAppearance(room, ent));
+            if(registry.any_of<SessionHolder>(ent)) {
+                sendLine(ent, op::renderLocation(loc, ent));
+            }
         }
     }
 
@@ -665,9 +659,12 @@ namespace dbat {
     }
 
     std::set<std::string> getSearchWords(entt::entity ent, entt::entity looker) {
-        auto name = stripAnsi(getDisplayName(ent, looker));
         std::set<std::string> words;
-        boost::split(words, name, boost::algorithm::is_space());
+        if(auto key = registry.try_get<Keywords>(ent) ;key) {
+            boost::split(words, key->data, boost::algorithm::is_space());
+        } else {
+            boost::split(words, stripAnsi(getDisplayName(ent, looker)), boost::algorithm::is_space());
+        }
         return words;
     }
 
@@ -730,7 +727,7 @@ namespace dbat {
         return result;
     }
 
-    std::optional<Destination> validDestination(entt::entity ent, const std::string& str) {
+    std::optional<Location> validDestination(entt::entity ent, const std::string& str) {
         if(!registry.valid(ent)) return std::nullopt;
 
         std::vector<double> coordinates;
@@ -743,7 +740,7 @@ namespace dbat {
         }
         // if coordinates has less than 3 elements, fill remaining with 0.0.
         coordinates.resize(3, 0.0);
-        Destination dest;
+        Location dest;
         dest.data = ent;
 
         if(auto area = registry.try_get<Area>(ent)) {
@@ -857,6 +854,25 @@ namespace dbat {
             }
         }
         handleBadMatch(ent, txt, match_map);
+    }
+
+    std::vector<entt::entity> getAncestors(entt::entity ent) {
+        std::vector<entt::entity> chain, out;
+        // We're going to walk up the tree, starting with ent, and add each to chain.
+        // At the end, reverse insert chain into out and return out.
+
+        auto parent = ent;
+        // Then, while ent has a parent, add it to chain and set ent to its parent.
+        while(registry.valid(parent)) {
+            chain.push_back(parent);
+            if(auto pcon = registry.try_get<Parent>(parent); pcon)
+                parent = pcon->data;
+            else
+                break;
+        }
+        // Now, reverse insert chain into out.
+        std::reverse_copy(chain.begin(), chain.end(), std::back_inserter(out));
+        return out;
     }
 
 }

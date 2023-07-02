@@ -8,16 +8,28 @@
 
 namespace dbat {
 
+    entt::entity PrototypeData::spawn() {
+        auto ent = createObject();
+        deserializeEntity(ent, data);
+        return ent;
+    }
+
+    std::string PrototypeData::entityName() {
+        if(data.contains("Name")) return data["Name"];
+        return name;
+    }
+
+    std::unordered_map<std::string, std::shared_ptr<PrototypeData>> prototypes;
+
     nlohmann::json serializeEntity(entt::entity ent, bool asPrototype) {
         nlohmann::json j;
-
 
         if (auto name = registry.try_get<Name>(ent); name) {
             j["Name"] = name->data;
         }
 
-        if (auto shortDescription = registry.try_get<ShortDescription>(ent); shortDescription) {
-            j["ShortDescription"] = shortDescription->data;
+        if (auto key = registry.try_get<Keywords>(ent); key) {
+            j["Keywords"] = key->data;
         }
 
         if (auto roomDescription = registry.try_get<RoomDescription>(ent); roomDescription) {
@@ -178,8 +190,9 @@ namespace dbat {
             }
         }
 
-        auto rflags = registry.try_get<RoomFlags>(ent);
-        if(rflags && rflags->data.any()) j["RoomFlags"] = bitsetToJson(rflags->data);
+        if(auto rflags = registry.try_get<RoomFlags>(ent); rflags) {
+            if(rflags->data.any()) j["RoomFlags"] = bitsetToJson(rflags->data);
+        }
 
         auto size = registry.try_get<Size>(ent);
         if(size) {
@@ -219,12 +232,8 @@ namespace dbat {
             j["WeaponData"] = w;
         }
 
-        auto wear = registry.try_get<WornData>(ent);
-        if(wear) {
-            nlohmann::json w;
-            if(wear->wearFlags.any()) w["wearFlags"] = bitsetToJson(wear->wearFlags);
-            if(wear->wornOn) w["wornOn"] = wear->wornOn.value();
-            j["WornData"] = w;
+        if(auto charworn = registry.try_get<CharWornData>(ent); charworn) {
+            if(charworn->data.any()) j["CharWornData"] = bitsetToJson(charworn->data);
         }
 
         auto food = registry.try_get<FoodData>(ent);
@@ -357,8 +366,9 @@ namespace dbat {
         if(j.contains("Name")) {
             registry.emplace<Name>(ent, j["Name"]);
         }
-        if(j.contains("ShortDescription")) {
-            registry.emplace<ShortDescription>(ent, j["ShortDescription"]);
+        if(j.contains("Keywords")) {
+            auto &k = registry.get_or_emplace<Keywords>(ent);
+            k.data = intern(j["Keywords"].get<std::string>());
         }
         if(j.contains("RoomDescription")) {
             registry.emplace<RoomDescription>(ent, j["RoomDescription"]);
@@ -563,11 +573,9 @@ namespace dbat {
             if(wd.contains("damType")) w.damType = wd["damType"];
         }
 
-        if(j.contains("WornData")) {
-            auto &w = registry.get_or_emplace<WornData>(ent);
-            auto wd = j["WornData"];
-            if(wd.contains("wearFlags")) jsonToBitset(wd["wearFlags"], w.wearFlags);
-            if(wd.contains("wornOn")) w.wornOn = wd["wornOn"];
+        if(j.contains("CharWornData")) {
+            auto &flags = registry.get_or_emplace<CharWornData>(ent);
+            jsonToBitset(j["CharWornData"], flags.data);
         }
 
         if(j.contains("FoodData")) {
@@ -694,7 +702,11 @@ namespace dbat {
             auto &proto = registry.get_or_emplace<Prototype>(ent);
             std::string p = j["Prototype"];
             proto.data = intern(p);
-            protoTracker[p].insert(ent);
+            auto find = prototypes.find(p);
+            if(find != prototypes.end()) {
+                // this is a new prototype, so we need to create a new protoTracker entry for it.
+                find->second->instanceCount++;
+            }
         }
 
         if(j.contains("Money")) {
@@ -881,7 +893,7 @@ namespace dbat {
 
             if(of.data.test(oflags::GLOBALROOMS)) {
                 for(auto &[id, en] : a.data) {
-                    Destination dest;
+                    Location dest;
                     dest.locationType = LocationType::Area;
                     dest.x = id;
                     dest.data = e;
@@ -904,6 +916,7 @@ namespace dbat {
     void loadDatabase() {
         broadcast("Loading game database... please wait warmly...");
         loadZones();
+        loadPrototypes();
         loadScripts();
         loadObjects();
         broadcast("Loaded Objects.");
@@ -918,12 +931,25 @@ namespace dbat {
         q.reset();
     }
 
+    void loadPrototypes() {
+        SQLite::Statement q(*db, "SELECT name, data FROM prototypes;");
+        while(q.executeStep()) {
+            auto proto = std::make_shared<PrototypeData>();
+            proto->name = q.getColumn(0).getText();
+            auto data = q.getColumn(1).getText();
+            proto->data = nlohmann::json::parse(data);
+            prototypes[proto->name] = proto;
+        }
+    }
+
     std::optional<nlohmann::json> getPrototype(const std::string& name) {
         SQLite::Statement q(*db, "SELECT data FROM prototypes WHERE name = ?;");
         q.bind(1, name);
         if(q.executeStep()) {
             auto data = q.getColumn(0).getText();
-            return nlohmann::json::parse(data);
+            auto j = nlohmann::json::parse(data);
+            j["Prototype"] = name;
+            return j;
         }
         return std::nullopt;
     }
@@ -933,7 +959,7 @@ namespace dbat {
         SQLite::Statement q(*db, "SELECT * from legacySpaceRooms;");
         auto obj = getObject(config::legacySpaceId);
         while(q.executeStep()) {
-            Destination dest;
+            Location dest;
             dest.data = obj;
             dest.locationType = LocationType::Expanse;
             auto id = q.getColumn("id").getInt64();
@@ -964,7 +990,7 @@ namespace dbat {
         SQLite::Statement q1(*db, "SELECT COUNT(*) FROM zones;");
         q1.executeStep();
         auto count = q1.getColumn(0).getInt64();
-        zones.reserve(count);
+
         broadcast(fmt::format("Loading {} Legacy Zones...", count));
 
         SQLite::Statement q(*db, "SELECT id, data from zones;");
@@ -979,7 +1005,7 @@ namespace dbat {
         for(auto &[id, z] : zones) {
             z.id = id;
             // Stagger zone resets so they don't all happen entirely at once....
-            z.age = 0.3 * ++counter;
+            z.age = (randomNumber(10, 300) * 1.0) + 0.3 * ++counter;
         }
 
     }

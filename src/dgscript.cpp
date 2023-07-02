@@ -519,6 +519,26 @@ namespace dbat {
                     cmdDetach(matched);
                 }
 
+                else if(boost::iequals(cmd, "send")) {
+                    cmdSend(matched);
+                }
+
+                else if(boost::iequals(cmd, "damage")) {
+                    cmdDamage(matched);
+                }
+
+                else if(boost::iequals(cmd, "echoaround")) {
+                    cmdEchoaround(matched);
+                }
+
+                else if(boost::iequals(cmd, "asound")) {
+                    cmdAsound(matched);
+                }
+
+                else if(boost::iequals(cmd, "recho")) {
+                    cmdRecho(matched);
+                }
+
                 else {
                     executeCommand(ent, subCmd);
                 }
@@ -603,12 +623,10 @@ namespace dbat {
                 } else if(unit == 's') {
                     return time;
                 } else {
-                    scriptError("wait command requires a unit of t or s");
-                    return 0.0;
+                    return 0.1;
                 }
             } else {
-                scriptError("wait command requires a unit of t or s");
-                return 0.0;
+                return 0.1;
             }
         }
 
@@ -725,14 +743,16 @@ namespace dbat {
             return;
         }
 
+        std::string varName, varValue;
         auto space = arg.find(' ');
         if(space == std::string::npos) {
-            scriptError("set command requires a variable and a value");
-            return;
+            varName = arg;
+            varValue = "1";
+        } else {
+            varName = arg.substr(0, space);
+            varValue = arg.substr(space + 1);
         }
 
-        auto varName = arg.substr(0, space);
-        auto varValue = arg.substr(space + 1);
         boost::trim(varName);
         boost::trim(varValue);
 
@@ -845,6 +865,131 @@ namespace dbat {
         dg.removeScript(id);
 
     }
+
+    void DgScript::cmdSend(std::unordered_map<std::string, std::string> &matched) {
+        // Syntax: <target> <message>
+        // <target> could be an ObjectId or a Name.
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("send command requires an argument");
+            return;
+        }
+
+        auto space = arg.find(' ');
+        if(space == std::string::npos) {
+            scriptError("send command requires a target and a message");
+            return;
+        }
+
+        auto targetName = arg.substr(0, space);
+        auto message = arg.substr(space + 1);
+        boost::trim(targetName);
+        boost::trim(message);
+
+        Search search(ent);
+        search.useAll(false).useId(true);
+
+        if(auto ro = registry.try_get<Room>(ent); ro) {
+            // This trigger is running as a Room.
+            Location l;
+            l.data = ro->obj.getObject();
+            l.locationType = LocationType::Area;
+            l.x = ro->id;
+            search.in(l);
+        } else {
+            auto loc = registry.try_get<Location>(ent);
+            if(loc) {
+                search.in(*loc);
+            }
+        }
+        for(auto &e : search.find(targetName)) {
+            sendLine(e, message);
+        }
+    }
+
+    void DgScript::cmdDamage(std::unordered_map<std::string, std::string> &matched) {
+        // todo: this inflicts damage. currently unimplemented...
+    }
+
+    void DgScript::cmdEchoaround(std::unordered_map<std::string, std::string> &matched) {
+// Syntax: <target> <message>
+        // <target> could be an ObjectId or a Name.
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("send command requires an argument");
+            return;
+        }
+
+        auto space = arg.find(' ');
+        if(space == std::string::npos) {
+            scriptError("send command requires a target and a message");
+            return;
+        }
+
+        auto targetName = arg.substr(0, space);
+        auto message = arg.substr(space + 1);
+        boost::trim(targetName);
+        boost::trim(message);
+
+        Search search(ent);
+        search.useAll(false).useId(true);
+
+        auto found = search.find(targetName);
+        if(found.empty()) return;
+        auto targ = found[0];
+
+        auto loc = registry.try_get<Location>(targ);
+        if(!loc) return;
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            auto rcon = registry.try_get<RoomContents>(room);
+            if(!rcon) return;
+            for(auto &e : rcon->data) {
+                if(e == targ) continue;
+                sendLine(e, message);
+            }
+        }
+
+    }
+
+    void DgScript::cmdAsound(std::unordered_map<std::string, std::string> &matched) {
+        // sends <args> to everything in all surrounding rooms of the trigger.
+        auto args = matched["args"];
+        if(args.empty()) return;
+
+        entt::entity room = entt::null;
+        if(auto rm = registry.try_get<Room>(ent); rm) {
+            room = ent;
+        } else {
+            auto loc = registry.try_get<Location>(ent);
+            if(!loc) return;
+            if(loc->locationType == LocationType::Area) {
+                auto &area = registry.get<Area>(loc->data);
+                room = area.data[loc->x];
+            }
+        }
+        if(!registry.valid(room)) return;
+        if(auto ex = registry.try_get<Exits>(room); ex) {
+            for(auto &[d, dest] : ex->data) {
+                if(!registry.valid(dest.data)) continue;
+                if(dest.locationType == LocationType::Area) {
+                    auto &area = registry.get<Area>(dest.data);
+                    auto neighbor = area.data[dest.x];
+                    auto rcon = registry.try_get<RoomContents>(neighbor);
+                    if(!rcon) continue;
+                    for(auto &e : rcon->data) {
+                        sendLine(e, args);
+                    }
+                }
+            }
+        }
+    }
+
+    void DgScript::cmdRecho(std::unordered_map<std::string, std::string> &matched) {
+        // UNIMPLEMENTED.
+    }
+
 
     bool DgScript::truthy(const std::string& arg) {
         // A truthy string is one which is not empty or "0".
@@ -1305,6 +1450,13 @@ namespace dbat {
                     // reference dg_variables.cpp line 457...
                     lastResult = dgRandom;
                 }
+                else if(boost::iequals(b.member, "purge") || boost::iequals(b.member, "force") ||
+                boost::iequals(b.member, "teleport") || boost::iequals(b.member, "damage") || boost::iequals(b.member, "send")
+                || boost::iequals(b.member, "echo") || boost::iequals(b.member, "echoaround") || boost::iequals(b.member, "zoneecho") ||
+                        boost::iequals(b.member, "asound") || boost::iequals(b.member, "at") || boost::iequals(b.member, "transform") ||
+                        boost::iequals(b.member, "recho")) {
+                    lastResult = b.member;
+                }
                 else {
                     // okay so it wasn't a special function. Then next we'll check
                     // through vars.
@@ -1612,7 +1764,7 @@ namespace dbat {
 
         if(checkMember == "has_item") {
             if(arg.empty()) return "0";
-            auto search = Search(ent).useId(true).setType(SearchType::Items).eq(ent).in(ent);
+            auto search = Search(ent).useId(true).setType(SearchType::Items).equipment(ent).inventory(ent);
             return search.find(arg).empty() ? "0" : "1";
         }
 

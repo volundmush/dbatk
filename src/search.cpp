@@ -7,18 +7,28 @@ namespace dbat {
 
     }
 
-    Search& Search::in(entt::entity inventory) {
-        searchLocations.emplace_back(SearchContainer::Inventory, inventory);
+    Search& Search::in(const Location& loc) {
+        searchLocations.emplace_back(loc);
         return *this;
     }
 
-    Search& Search::eq(entt::entity equipment) {
-        searchLocations.emplace_back(SearchContainer::Equipment, equipment);
+    Search& Search::inventory(entt::entity ent) {
+        if(ent != entt::null) {
+            Location loc;
+            loc.data = ent;
+            loc.locationType == LocationType::Inventory;
+            searchLocations.emplace_back(loc);
+        }
         return *this;
     }
 
-    Search& Search::room(entt::entity room) {
-        searchLocations.emplace_back(SearchContainer::Room, room);
+    Search& Search::equipment(entt::entity ent) {
+        if(ent != entt::null) {
+            Location loc;
+            loc.data = ent;
+            loc.locationType == LocationType::Equipment;
+            searchLocations.emplace_back(loc);
+        }
         return *this;
     }
 
@@ -118,14 +128,20 @@ namespace dbat {
         }
         std::vector<entt::entity> results;
 
-        for(const auto&[t, l] : searchLocations) {
+        for(auto& l : searchLocations) {
             std::vector<entt::entity> ents;
-            if(t == SearchContainer::Room) {
-                ents = getRoomContents(l);
-            } else if(t == SearchContainer::Inventory) {
-                ents = getInventory(l);
-            } else if(t == SearchContainer::Equipment) {
-                ents = getEquipment(l);
+            if(l.locationType == LocationType::Area) {
+                ents = getRoomContents(l.getRoom());
+            } else if(l.locationType == LocationType::Inventory) {
+                ents = getInventory(l.data);
+            } else if(l.locationType == LocationType::Equipment) {
+                ents = getEquipment(l.data);
+            } else if(l.locationType == LocationType::Expanse) {
+
+            } else if(l.locationType == LocationType::Map) {
+
+            } else if(l.locationType == LocationType::Space) {
+
             }
 
             if(ents.empty()) continue;

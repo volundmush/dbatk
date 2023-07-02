@@ -3,12 +3,6 @@
 
 namespace dbat {
 
-    enum class SearchContainer {
-        Room = 0,
-        Inventory = 1,
-        Equipment = 2
-    };
-
     enum class SearchType {
         Anything = 0, // Characters, Items, and Vehicles... anything, really.
         Characters = 1, // will also catch players and NPCs!
@@ -21,9 +15,9 @@ namespace dbat {
     class Search {
     public:
         explicit Search(entt::entity ent);
-        Search& in(entt::entity inventory);
-        Search& eq(entt::entity equipment);
-        Search& room(entt::entity room);
+        Search& in(const Location& loc);
+        Search& inventory(entt::entity ent);
+        Search& equipment(entt::entity ent);
         Search& modes(uint64_t m);
         Search& useId(bool useId);
         Search& useSelf(bool useSelf);
@@ -38,7 +32,7 @@ namespace dbat {
         bool detect(entt::entity target);
         entt::entity ent;
         std::string txt;
-        std::vector<std::pair<SearchContainer, entt::entity>> searchLocations;
+        std::vector<Location> searchLocations;
         uint64_t useModes{0};
         SearchType type{SearchType::Anything};
         bool allowId{false};

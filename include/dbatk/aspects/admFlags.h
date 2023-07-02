@@ -33,10 +33,29 @@ namespace dbat::aflags {
         KIRBY = 6,
         // All your attacks deal obscene amounts of damage and kill anything in one shot.
         BOOMHEADSHOT = 7,
-        // Overhear all whispers and private tells between players.
-        PANOPTICON = 8
+    };
+
+    class AdminFlag : public BaseFlag {
+    public:
+        virtual void onLoad(entt::entity room) {};
+        virtual void onSet(entt::entity room) {};
+        virtual void onClear(entt::entity room) {};
+    };
+
+    class SimpleAdminFlag : public AdminFlag {
+    public:
+        SimpleAdminFlag(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
     };
 
     constexpr std::size_t countAdminFlags = 8;
+
+    extern const std::vector<std::shared_ptr<AdminFlag>> adminFlags;
+
+    std::optional<AFlagId> getAdminFlagId(const std::string& name, bool exact = true);
 
 }

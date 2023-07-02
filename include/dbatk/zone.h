@@ -56,6 +56,6 @@ namespace dbat {
      */
     };
 
-    extern std::unordered_map<std::size_t, Zone> zones;
+    extern std::map<std::size_t, Zone> zones;
 
 }

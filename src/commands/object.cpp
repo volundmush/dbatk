@@ -14,12 +14,7 @@ namespace dbat::cmd {
             return;
         }
 
-        if(loc->locationType == LocationType::Area) {
-            auto &area = registry.get<Area>(loc->data);
-            auto &room = area.data[loc->x];
-            sendLine(ent, op::renderRoomAppearance(room, ent));
-            return;
-        }
+        sendLine(ent, op::renderLocation(*loc, ent));
     }
 
     void ObjHelp::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
@@ -137,6 +132,30 @@ namespace dbat::cmd {
         }
         m.send();
     }
+
+    void ObjEcho::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+        if(!loc) {
+            sendLine(ent, "You are nowhere. There is nobody to notice you.");
+            return;
+        }
+
+        auto args = input["args"];
+        if(args.empty()) sendLine(ent, "Echo what?");
+
+        // TODO: Handle the *target stuff for roleplay later.
+
+        MsgFormat m(ent, args);
+        if(loc->locationType == LocationType::Area) {
+            auto &area = registry.get<Area>(loc->data);
+            auto &room = area.data[loc->x];
+            m.room(room);
+        } else {
+            // todo: handle these cases...
+        }
+        m.send();
+    }
+
 
     void ObjSemipose::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         auto loc = registry.try_get<Location>(ent);
