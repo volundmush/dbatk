@@ -968,9 +968,9 @@ namespace dbat::op {
                         printVal = std::get<std::string>(val);
                     } else {
                         // it's an entt::entity ...
-                        auto e = std::get<entt::entity>(val);
+                        auto e = std::get<Location>(val);
                         // Which is either an ObjectId or a Room...
-                        printVal = "Entity";
+                        printVal = "entity";
                     }
                     lines.emplace_back(fmt::format("      {}: {}", name, printVal));
                 }
@@ -980,6 +980,97 @@ namespace dbat::op {
         return boost::algorithm::join(lines, "\n");
     }
 
+    std::string renderPrefix(entt::entity ent) {
+        std::string prefix = "?";
+        if(registry.any_of<NPC>(ent)) {
+            prefix = "N";
+        }
+        else if(registry.any_of<Player>(ent)) {
+            prefix = "P";
+        }
+        else if(registry.any_of<Vehicle>(ent)) {
+            prefix = "V";
+        }
+        else if(registry.any_of<Item>(ent)) {
+            prefix = "I";
+        }
+        else if(registry.any_of<Area>(ent)) {
+            prefix = "A";
+        }
+        else if(registry.any_of<CelestialBody>(ent)) {
+            prefix = "C";
+        }
+        else if(registry.any_of<Map>(ent)) {
+            prefix = "M";
+        }
+        else if(registry.any_of<Expanse>(ent)) {
+            prefix = "E";
+        }
+        else if(registry.any_of<Space>(ent)) {
+            prefix = "S";
+        }
+        return prefix;
+    }
 
+    std::string renderWhere(const std::string& name, entt::entity looker) {
+        std::vector<std::string> lines;
+        lines.emplace_back(fmt::format("Looking for: *{}*", name));
+        std::size_t counter = 0;
+        bool matrix = false;
+        if(auto a = registry.try_get<AdminFlags>(looker); a) {
+            matrix = a->data.test(aflags::MATRIX);
+        }
+        auto v = registry.view<ObjectId, Location>();
+        for(auto ent : v) {
+            if(ent == looker) continue;
+            auto n = stripAnsi(getName(ent));
+            std::string keywords;
+            if(auto k = registry.try_get<Keywords>(ent); k) {
+                keywords = k->data;
+            }
+            if(!boost::algorithm::icontains(n, name) && !boost::algorithm::icontains(keywords, name)) {
+                continue;
+            }
+            auto prefix = renderPrefix(ent);
+            auto &loc = v.get<Location>(ent);
+            auto &oid = v.get<ObjectId>(ent);
+            n = renderDisplayName(ent, looker, matrix);
+            if(loc.locationType == LocationType::Absolute) {
+                // This shouldn't be possible...
+                logger->error("Found an entity with an absolute location in the world! {}", oid.toString());
+                continue;
+            }
+            else if(loc.locationType == LocationType::Inventory) {
+                lines.emplace_back(fmt::format("{} {} - inventory of {}", prefix, n, renderDisplayName(loc.data, looker, matrix)));
+            }
+            else if(loc.locationType == LocationType::Equipment) {
+                lines.emplace_back(fmt::format("{} {} - equipped in slot {} by {}", prefix, n, loc.x, renderDisplayName(loc.data, looker, matrix)));
+            }
+            else if(loc.locationType == LocationType::Area) {
+                auto room = loc.getRoom();
+                lines.emplace_back(fmt::format("{} {} - area {} - room {}", prefix, n, renderDisplayName(loc.data, looker, matrix), loc.x, renderDisplayName(room, looker, matrix)));
+            }
+            else if(loc.locationType == LocationType::Map) {
+                lines.emplace_back(fmt::format("{} {} - map {} - ({},{},{})", prefix, n, renderDisplayName(loc.data, looker, matrix), loc.x, loc.y, loc.z));
+            }
+            else if(loc.locationType == LocationType::Expanse) {
+                lines.emplace_back(fmt::format("{} {} - expanse {} - ({},{},{})", prefix, n, renderDisplayName(loc.data, looker, matrix), loc.x, loc.y, loc.z));
+            }
+            else if(loc.locationType == LocationType::Space) {
+                lines.emplace_back(fmt::format("{} {} - space {} - ({},{},{})", prefix, n, renderDisplayName(loc.data, looker, matrix), loc.x, loc.y, loc.z));
+            }
+            else {
+                logger->error("Found an entity with an unknown location type in the world! {} - {}", oid.toString(), static_cast<uint8_t>(loc.locationType));
+                continue;
+            }
+            counter++;
+        }
+
+        if(counter) {
+            lines.emplace_back(fmt::format("Found {} matches.", counter));
+        }
+
+        return boost::algorithm::join(lines, "\n");
+    }
 
 }

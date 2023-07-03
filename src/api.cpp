@@ -6,6 +6,8 @@
 #include "dbatk/operations/information.h"
 #include "dbatk/commands.h"
 #include "dbatk/triggers.h"
+#include "dbatk/grammar.h"
+#include "dbatk/message.h"
 
 namespace dbat {
 
@@ -232,6 +234,23 @@ namespace dbat {
     }
 
     OpResult<> canAddToInventory(entt::entity ent, entt::entity item, MoveParams& params) {
+        if(registry.all_of<NPC, DgScripts>(ent)) {
+            if(params.moveType == MoveType::Give) {
+                // The NPC is being given something. We need to check if they can accept it.
+                if(auto mp = registry.try_get<MoneyPile>(item); mp) {
+                    // Avoid accidentally giving money to a mob who won't accept it.
+                    if(!mobBribeTrigger(params.mover, ent, mp->data, true)) {
+                        return {false, "They don't need it."};
+                    }
+                } else {
+                    // It's a normal item. Check if they can accept it.
+                    if(!mobReceiveTrigger(params.mover, ent, item, true)) {
+                        return {false, "They don't need it."};
+                    }
+                }
+            }
+        }
+
         return {true, std::nullopt};
     }
 
@@ -248,10 +267,60 @@ namespace dbat {
     }
 
     void removeFromInventory(entt::entity ent, entt::entity item, MoveParams& params) {
+
+
+
+        if(auto i = registry.try_get<Inventory>(ent); i) {
+            i->data.erase(std::remove(i->data.begin(), i->data.end(), item), i->data.end());
+            if(i->data.empty()) {
+                registry.remove<Inventory>(ent);
+            }
+        }
         registry.erase<Location>(item);
     }
 
     void leaveRoom(entt::entity ent, entt::entity room, MoveParams& params) {
+        Location l;
+        auto &r = registry.get<Room>(room);
+        l.data = r.obj.getObject();
+        l.x = r.id;
+        l.locationType = LocationType::Area;
+
+        if(!params.quiet) {
+            if(params.traverseType == TraverseType::Physical) {
+                if(params.moveType == MoveType::Traverse) {
+                    // this is probably a character moving in a direction...
+                    if(params.dir) {
+                        MsgFormat m(ent, fmt::format("$You() $conj(leave) {}.", dir::directions[params.dir.value()].getName()));
+                        m.in(l);
+                        m.exclude(ent);
+                        m.send();
+                    } else {
+                        MsgFormat m(ent, "$You() $conj(leave) this place.");
+                        m.in(l);
+                        m.send();
+                    }
+                }
+                else if(params.moveType == MoveType::Get) {
+                    // this is an item being gotten from a room...
+                    // it is covered by addToInventory's announce.
+                }
+            }
+            else if(params.traverseType == TraverseType::Teleport) {
+                MsgFormat m(ent, "$You() vanishes in a flash of light!");
+                m.in(l);
+                m.exclude(ent);
+                m.send();
+            }
+            else if(params.traverseType == TraverseType::System) {
+                MsgFormat m(ent, "$You() vanishes in a flash of light!");
+                m.in(l);
+                m.exclude(ent);
+                m.send();
+            }
+        }
+
+
         auto &rc = registry.get_or_emplace<RoomContents>(room);
         std::erase_if(rc.data, [&](auto e) { return e == ent; });
         if(rc.data.empty()) registry.erase<RoomContents>(room);
@@ -268,6 +337,64 @@ namespace dbat {
 
 
     void addToInventory(entt::entity ent, entt::entity item, MoveParams& params) {
+        if(registry.all_of<NPC, DgScripts>(ent)) {
+            if(params.moveType == MoveType::Give) {
+                // The NPC is being given something. Call the appropriate triggers.
+                if(auto mp = registry.try_get<MoneyPile>(item); mp) {
+                    mobBribeTrigger(params.mover, ent, mp->data);
+                } else {
+                    mobReceiveTrigger(params.mover, ent, item);
+                }
+            }
+        }
+
+        if(!params.quiet) {
+            if(params.moveType == MoveType::Get) {
+                auto prev = params.previousLocation.value();
+                if(prev.locationType == LocationType::Area) {
+                    // it was in a room...
+                    MsgFormat m(ent, "$You() $conj(get) $you(item).");
+                    m.set("item", item);
+                    m.in(prev);
+                    m.send();
+                }
+                else if(prev.locationType == LocationType::Inventory) {
+                    // it was in a container...
+                    MsgFormat m(ent, "$You() $conj(get) $you(item) from $you(container).");
+                    m.set("item", item);
+                    m.set("container", prev.data);
+                    if(auto loc = registry.try_get<Location>(ent); loc) {
+                        m.in(*loc);
+                    }
+                    m.send();
+                }
+            }
+            else if(params.moveType == MoveType::Give) {
+                MsgFormat m(params.mover, "$You() $conj(give) $you(item) to $you(target).");
+                m.set("item", item);
+                m.set("target", ent);
+                if(auto loc = registry.try_get<Location>(ent); loc) {
+                    m.in(*loc);
+                }
+                m.send();
+            }
+            else if(params.moveType == MoveType::Put) {
+                MsgFormat m(params.mover, "$You() $conj(put) $you(item) in $you(container).");
+                m.set("item", item);
+                m.set("container", ent);
+                if(auto loc = registry.try_get<Location>(ent); loc) {
+                    m.in(*loc);
+                }
+                m.send();
+            }
+        }
+
+        auto &i = registry.get_or_emplace<Inventory>(ent);
+        i.data.emplace_back(item);
+
+        auto &l = registry.get_or_emplace<Location>(item);
+        l.data = ent;
+        l.locationType = LocationType::Inventory;
 
     }
 
@@ -277,29 +404,72 @@ namespace dbat {
         loc.data = d.data;
         loc.x = d.x;
         loc.locationType = d.locationType;
-        if(!params.quiet) {
-            // TODO: announce movement here...
-        }
+
         auto &rc = registry.get_or_emplace<RoomContents>(room);
         rc.data.push_back(ent);
 
-        // greet triggers.
-        if(params.traverseType != TraverseType::System && !mobTriggerGreet(ent, params.dir)) {
-            // If it returned false, we must kick the character back to previous location if possible.
+        if(!params.quiet) {
+            if(params.moveType == MoveType::Traverse) {
+                // This is normal movement from room to room. It's probably directional, and probably
+                // a person or vehicle, though an item isn't out of the question...
+                if(params.dir) {
+                    // We will generate a message like "Bob walks in from the north."
+                    auto opposite = dir::directions[params.dir.value()].getRevName();
+                    MsgFormat m(ent, fmt::format("$You() $conj(walk) in from the {}.", opposite));
+                    m.in(loc);
+                    m.exclude(ent);
+                    m.send();
+                } else {
+                    // We will need to make something generic... check if traverseType is teleport though.
+                    if(params.traverseType == TraverseType::Teleport) {
+                        MsgFormat m(ent, "$You() $conj(appear) in a flash of light!");
+                        m.in(loc);
+                        m.exclude(ent);
+                        m.send();
+                    } else {
+                        MsgFormat m(ent, "$You() $conj(walk) in.");
+                        m.in(loc);
+                        m.exclude(ent);
+                        m.send();
+                    }
+                }
+            }
+            else if(params.moveType == MoveType::Drop) {
+                // This is an item being dropped by params.mover.
+                MsgFormat m(params.mover, "$You() $conj(drop) $you(item).");
+                m.set("item", ent);
+                m.in(loc);
+                m.send();
+            }
+        }
+
+
+
+        // triggers.
+        bool reverse = false;
+        if(params.traverseType != TraverseType::System) {
+            reverse = !mobTriggerGreet(ent, params.dir);
+            if(!reverse) reverse = !mobTriggerEntry(ent);
+            if(!reverse) reverse = !roomTriggerEntry(ent, room, params.dir);
+        }
+
+        if(reverse) {
             if(params.previousLocation) {
                 MoveParams mp = params;
                 mp.previousLocation = loc;
                 mp.dest = params.previousLocation;
+                mp.force = true;
                 mp.dir.reset(); // maybe need to reverse directions here...
                 // should probably set some kind of safeguard on MoveParams to prevent infinite ping-ponging.
                 moveTo(ent, mp);
-            }
-        } else {
-            // Rendering a room appearance is very expensive, so we'll only do it if we know there'll be someone listening.
-            if(registry.any_of<SessionHolder>(ent)) {
-                sendLine(ent, op::renderLocation(loc, ent));
+                return;
             }
         }
+
+        if(registry.any_of<SessionHolder>(ent)) {
+            sendLine(ent, op::renderLocation(loc, ent));
+        }
+
     }
 
     void enterPOI(entt::entity ent, entt::entity poi, MoveParams& params) {
@@ -749,6 +919,7 @@ namespace dbat {
             RoomId id = coordinates[0];
             if(area->data.contains(id)) {
                 dest.x = id;
+                dest.locationType == LocationType::Area;
                 return dest;
             } else {
                 return std::nullopt;
@@ -832,13 +1003,20 @@ namespace dbat {
         sendLine(ent, "Sorry, that's not a command.");
     }
 
-    void executeCommand(entt::entity ent, const std::string& txt) {
+    bool executeCommand(entt::entity ent, const std::string& txt) {
         auto match_map = parseCommand(txt);
         if(match_map.empty()) {
             //handleBadMatch(txt, match_map);
-            return;
+            return false;
         }
         auto ckey = match_map["cmd"];
+        auto args = match_map["args"];
+
+        // first we'll check if there any script command handlers...
+        if(triggerCommand(ent, ckey, args)) {
+            return true;
+        }
+
         auto commands = getSortedCommands(ent);
         for(auto &[key, cmd] : commands) {
             if(!cmd->isAvailable(ent))
@@ -847,13 +1025,14 @@ namespace dbat {
                 auto [can, err] = cmd->canExecute(ent, match_map);
                 if(!can) {
                     sendLine(ent, fmt::format("Sorry, you can't do that: {}", err.value()));
-                    return;
+                    return false;
                 }
                 cmd->execute(ent, match_map);
-                return;
+                return true;
             }
         }
         handleBadMatch(ent, txt, match_map);
+        return false;
     }
 
     std::vector<entt::entity> getAncestors(entt::entity ent) {
@@ -873,6 +1052,82 @@ namespace dbat {
         // Now, reverse insert chain into out.
         std::reverse_copy(chain.begin(), chain.end(), std::back_inserter(out));
         return out;
+    }
+
+    static std::map<int64_t, std::string> zenniNames = {
+            {0,     "an imaginary zenni"},
+            {1,     "a single zenni"},
+            {10,    "a tiny pile of zenni"},
+            {20,    "a handful of zenni"},
+            {75,    "a little pile of zenni"},
+            {150,   "a small pile of zenni"},
+            {250,   "a pile of zenni"},
+            {500,   "a big pile of zenni"},
+            {1000,  "a large heap of zenni"},
+            {5000,  "a huge mound of zenni"},
+            {10000, "an enormous mound of zenni"},
+            {15000, "a small mountain of zenni"},
+            {20000, "a mountain of zenni"},
+            {25000, "a huge mountain of zenni"},
+            {50000, "an enormous mountain of zenni"}
+    };
+
+    entt::entity createMoneyPile(int64_t amount) {
+        auto ent = createObject();
+        auto &p = registry.get_or_emplace<MoneyPile>(ent);
+        p.data = amount;
+
+        registry.emplace<Item>(ent);
+        // We want to set the name based on the amount of zenni, referencing zenniNames.
+        // We must iterate through it in reverse and pick the first where amount >= .first
+        if(amount == 1) {
+            setName(ent, "a single zenni");
+            setRoomDescription(ent, "One miserable zenni is lying here.");
+            setLookDescription(ent, "One lonely coin with a Z on it.");
+        } else {
+            setLookDescription(ent, "A stack of gold coins with a Z logo.");
+            auto it = std::find_if(zenniNames.rbegin(), zenniNames.rend(), [amount](auto& p) {
+                return amount >= p.first;
+            });
+            if(it != zenniNames.rend()) {
+                setName(ent, it->second);
+            } else {
+                setName(ent, "a pile of zenni");
+            }
+            setRoomDescription(ent, fmt::format("{} is lying here.", grammar::capitalize(getName(ent))));
+        }
+
+
+        auto &key = registry.get_or_emplace<Keywords>(ent);
+        key.data = intern(std::string("zenni money coin coins zenny"));
+        auto &mat = registry.get_or_emplace<Material>(ent);
+        mat.data = mat::CURRENCY;
+
+        auto &ex = registry.get_or_emplace<ExtraDescriptions>(ent);
+        auto &e = ex.data.emplace_back();
+        e.first = intern(std::string("zenni money coin coins zenny"));
+        std::string exDesc = "There is a LOT of zenni.";
+        if(amount < 10) exDesc = fmt::format("There is {} zenni.", amount);
+        else if(amount < 100) exDesc = fmt::format("There is about {} zenni.", 10 * (amount / 10));
+        else if(amount < 1000) exDesc = fmt::format("It looks to be about {} zenni.", 100 * (amount / 100));
+        else if(amount < 100000) exDesc = fmt::format("You guess there is, maybe, {} zenni.", 1000 * ((amount / 1000) + randomNumber<int64_t>(0, (amount / 1000))));
+        e.second = intern(exDesc);
+
+        return ent;
+    }
+
+    void deleteObject(entt::entity ent) {
+        atDeleteObject(ent);
+        registry.destroy(ent);
+    }
+
+    void adminAlert(const std::string& txt, int64_t superVisorLevel) {
+        auto formatted = fmt::format("@g[ADMIN: {}@n@g]@n\n", txt);
+        for(auto &[id, conn] : connections) {
+            if(conn->getAdminLevel() >= superVisorLevel) {
+                conn->sendText(formatted);
+            }
+        }
     }
 
 }

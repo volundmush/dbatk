@@ -192,9 +192,9 @@ namespace dbat {
                 // We're only interested in iterating over the contents of the "data" array.
                 // Now we must for-each over the contents of jarr, extract the cmd, args, and kwargs data, and call
                 // the appropriate handle routine.
-                logger->info("Received data from link: {}", value.dump());
+                //logger->info("Received data from link: {}", value.dump());
                 for (auto &jval : value["data"]) {
-                    logger->info("Processing data from link: {}", jval.dump());
+                    //logger->info("Processing data from link: {}", jval.dump());
                     std::string cmd = jval["cmd"];
                     nlohmann::json jargs = jval["args"];
                     nlohmann::json jkwargs = jval["kwargs"];

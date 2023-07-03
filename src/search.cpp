@@ -16,7 +16,7 @@ namespace dbat {
         if(ent != entt::null) {
             Location loc;
             loc.data = ent;
-            loc.locationType == LocationType::Inventory;
+            loc.locationType = LocationType::Inventory;
             searchLocations.emplace_back(loc);
         }
         return *this;
@@ -26,7 +26,7 @@ namespace dbat {
         if(ent != entt::null) {
             Location loc;
             loc.data = ent;
-            loc.locationType == LocationType::Equipment;
+            loc.locationType = LocationType::Equipment;
             searchLocations.emplace_back(loc);
         }
         return *this;

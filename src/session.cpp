@@ -80,6 +80,7 @@ namespace dbat {
     void Session::addConnection(const std::shared_ptr<Connection> &conn) {
         clients[conn->getConnId()] = conn;
         onAddConnection(conn);
+        adminLevel = conn->getAdminLevel();
         totalConnections++;
     }
 

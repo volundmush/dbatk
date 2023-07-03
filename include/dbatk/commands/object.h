@@ -131,15 +131,7 @@ namespace dbat::cmd {
      */
     struct ObjGet : ObjCmd {
         [[nodiscard]] std::string getCmdName() override { return "get"; };
-        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
-    };
-
-    /*
-     * The "take" command is used to retrieve an object from an item in your inventory or equipment,
-     * and place it in your inventory.
-     */
-    struct ObjTake : ObjCmd {
-        [[nodiscard]] std::string getCmdName() override { return "take"; };
+        [[nodiscard]] std::set<std::string> getAliases() override { return {"take"}; };
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 

@@ -45,5 +45,11 @@ namespace dbat::cmd {
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 
+    struct AdmWhere : AdmCmd {
+        std::string getCmdName() override { return ".where"; };
+        std::set<std::string> getAliases() override { return {".wh"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
     void registerAdminCommands();
 }

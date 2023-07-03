@@ -8,7 +8,7 @@ namespace dbat {
 
     class DgScript;
 
-    using DgVariant = std::variant<std::string, entt::entity>;
+    using DgVariant = std::variant<std::string, Location>;
     using DgFunc = std::function<DgVariant(const std::shared_ptr<DgScript>&, const std::string&, bool, const std::string&)>;
 
     DgVariant dgGlobal(const std::shared_ptr<DgScript>& script, const std::string& member, bool call, const std::string& arg);
@@ -35,7 +35,7 @@ namespace dbat {
             RECEIVE = 9,
             FIGHT = 10,
             HITPRCNT = 11,
-            BRIVE = 12,
+            BRIBE = 12,
             LOAD = 13,
             MEMORY = 14,
             CAST = 15,
@@ -133,11 +133,11 @@ namespace dbat {
         void deserializeVars(const nlohmann::json &j);
         void setVar(const std::string& name, const DgVariant& var);
         void setVar(const std::string& name, const std::string& var);
+        void setVar(const std::string& name, entt::entity var);
         std::optional<DgVariant> getVar(const std::string& name);
         bool hasVar(const std::string& name);
         void clearVar(const std::string& name);
         void clearVars();
-        void checkEntity();
     };
 
     extern HasDgVars globalDgVars;
@@ -189,6 +189,7 @@ namespace dbat {
         void cmdEchoaround(std::unordered_map<std::string, std::string>& matched);
         void cmdAsound(std::unordered_map<std::string, std::string>& matched);
         void cmdRecho(std::unordered_map<std::string, std::string>& matched);
+        void cmdLoad(std::unordered_map<std::string, std::string>& matched);
 
     };
 

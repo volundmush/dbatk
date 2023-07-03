@@ -902,15 +902,6 @@ namespace dbat {
             }
         }
 
-        // Load script variables properly.
-        auto v3 = registry.view<DgScripts>();
-        for(auto e : v3) {
-            auto &d = v3.get<DgScripts>(e);
-            d.checkEntity();
-        }
-
-        globalDgVars.checkEntity();
-
     }
 
     void loadDatabase() {

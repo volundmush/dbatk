@@ -27,19 +27,17 @@ namespace dbat {
     enum class MoveType {
         // Used for moving between rooms or coordinates via normal travel.
         Traverse = 0,
-        // Retrieving something from a room.
+        // Retrieving something from a room or container.
         Get = 1,
-        // Retrieving something from a container.
-        Take = 2,
         // Giving an item to another character.
-        Give = 3,
+        Give = 2,
         // Dropping an item into a room.
-        Drop = 4,
+        Drop = 3,
         // Putting an item into a container.
-        Put = 5,
+        Put = 4,
         // Equipping and removing items.
-        Equip = 6,
-        Remove = 7
+        Equip = 5,
+        Remove = 6
 
     };
 
@@ -120,6 +118,7 @@ namespace dbat {
     std::string getRoomLine(entt::entity ent, entt::entity looker, bool matrix=false);
     std::string renderAppearance(entt::entity ent, entt::entity looker);
 
+    void deleteObject(entt::entity ent);
     void atDeleteObject(entt::entity ent);
 
     std::set<std::string> getSearchWords(entt::entity ent, entt::entity looker);
@@ -142,8 +141,12 @@ namespace dbat {
     void sendLine(entt::entity ent, const std::string& txt);
 
     void handleBadMatch(entt::entity ent, const std::string& txt, std::unordered_map<std::string, std::string>& matches);
-    void executeCommand(entt::entity ent, const std::string& cmd);
+    bool executeCommand(entt::entity ent, const std::string& cmd);
 
     std::vector<entt::entity> getAncestors(entt::entity ent);
+
+    entt::entity createMoneyPile(int64_t amount);
+
+    void adminAlert(const std::string& txt, int64_t superVisorLevel = 1);
 
 }

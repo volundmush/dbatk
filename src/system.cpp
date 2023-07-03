@@ -5,6 +5,7 @@
 #include "dbatk/components.h"
 #include "dbatk/zone.h"
 #include "dbatk/dgscript.h"
+#include "dbatk/triggers.h"
 
 namespace dbat {
 
@@ -116,6 +117,25 @@ namespace dbat {
         for(auto& inst : instances) {
             inst->onHeartbeat(deltaTime);
         }
+        co_return;
+    }
+
+    async<bool> ProcessDgRandom::shouldRun(double deltaTime) {
+        timer -= deltaTime;
+        if(timer <= 0.0) {
+            timer = 13.0;
+            co_return true;
+        }
+        co_return false;
+    }
+
+    async<void> ProcessDgRandom::run(double deltaTime) {
+        auto v = registry.view<DgScripts>();
+
+        for(auto ent : v) {
+            triggerRandom(ent);
+        }
+
         co_return;
     }
 

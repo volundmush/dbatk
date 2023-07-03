@@ -30,5 +30,8 @@ namespace dbat::op {
     std::string renderItemListing(entt::entity ent, entt::entity looker, bool matrix);
 
     std::string renderExamine(entt::entity ent, entt::entity looker);
+    std::string renderPrefix(entt::entity ent);
+
+    std::string renderWhere(const std::string &name, entt::entity looker);
 
 }

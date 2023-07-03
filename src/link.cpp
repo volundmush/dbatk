@@ -132,7 +132,7 @@ namespace dbat {
                 if (kind == "client_list") {
                     // This message is sent by Thermite when the game establishes a fresh connection with it.
                     // It should be the first thing a Link sees.
-                    logger->info("Link: Received client_list message");
+                    //logger->info("Link: Received client_list message");
                     // Get the "data" object
                     auto &data = j["data"];
 

@@ -100,18 +100,25 @@ namespace dbat {
         return *this;
     }
 
+    MsgFormat& MsgFormat::exclude(entt::entity ent) {
+        toExclude.insert(ent);
+        return *this;
+    }
+
     MsgFormat& MsgFormat::direct(entt::entity recipient) {
-        recipients.emplace_back(MsgTargetType::Direct, recipient);
+        auto &loc = recipients.emplace_back();
+        loc.locationType = LocationType::Absolute;
+        loc.data = recipient;
         return *this;
     }
 
     MsgFormat& MsgFormat::region(entt::entity reg) {
-        recipients.emplace_back(MsgTargetType::Region, reg);
+        regions.emplace_back(reg);
         return *this;
     }
 
-    MsgFormat& MsgFormat::room(entt::entity room) {
-        recipients.emplace_back(MsgTargetType::Room, room);
+    MsgFormat& MsgFormat::in(dbat::Location loc) {
+        recipients.emplace_back(loc);
         return *this;
     }
 
@@ -121,26 +128,40 @@ namespace dbat {
     }
 
     void MsgFormat::send() {
-        for(auto &r : recipients) {
-            if(r.first == MsgTargetType::Room) {
-                // r.second is a room entity, we should retrieve RoomContents and iterate.
-                if(auto rcon = registry.try_get<RoomContents>(r.second); rcon) {
-                    for(auto &e : rcon->data) {
-                        sendTo(e);
-                    }
-                }
-            } else if(r.first == MsgTargetType::Region) {
-                // r.second is a region entity, we should retrieve Contents and iterate.
-                if(auto con = registry.try_get<Contents>(r.second); con) {
-                    for(auto &e : con->data) {
-                        sendTo(e);
-                    }
-                }
-            } else if(r.first == MsgTargetType::Direct) {
+        std::set<entt::entity> seen;
+
+        for(auto &l : recipients) {
+            if(l.locationType == LocationType::Absolute) {
                 // r.second is our direct target to send to.
-                sendTo(r.second);
+                if(toExclude.contains(l.data)) continue;
+                if(seen.contains(l.data)) continue;
+                sendTo(l.data);
+                seen.insert(l.data);
+            }
+            else if(l.locationType == LocationType::Area) {
+                // r.second is a room entity, we should retrieve RoomContents and iterate.
+                auto r = l.getRoom();
+                if(auto rcon = registry.try_get<RoomContents>(r); rcon) {
+                    for(auto &e : rcon->data) {
+                        if(toExclude.contains(e)) continue;
+                        if(seen.contains(e)) continue;
+                        sendTo(e);
+                        seen.insert(e);
+                    }
+                }
+            } else if(l.locationType == LocationType::Expanse) {
+
             }
         }
+        for(auto &reg : regions) {
+            for(auto e : getContents(reg)) {
+                if(toExclude.contains(e)) continue;
+                if(seen.contains(e)) continue;
+                sendTo(e);
+                seen.insert(e);
+            }
+        }
+
     }
 
     std::string MsgFormat::callFunc(const std::string &func, const std::string &arg, entt::entity recipient,

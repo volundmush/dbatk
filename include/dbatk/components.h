@@ -6,6 +6,7 @@
 #include "dbatk/aspects/celFlags.h"
 #include "dbatk/aspects/celType.h"
 #include "dbatk/aspects/charStats.h"
+#include "dbatk/aspects/container.h"
 #include "dbatk/aspects/direction.h"
 #include "dbatk/aspects/effect.h"
 #include "dbatk/aspects/exitFlags.h"
@@ -239,6 +240,10 @@ namespace dbat {
         int64_t data{0};
     };
 
+    struct MoneyPile {
+        int64_t data{0};
+    };
+
     struct LevelRequirement {
         int64_t data{0};
     };
@@ -271,7 +276,7 @@ namespace dbat {
 
     struct ContainerData {
         uint16_t capacity{0};
-        std::bitset<4> containerFlags;
+        std::bitset<con::numContFlags> containerFlags;
         std::optional<std::size_t> key;
     };
 
@@ -376,6 +381,10 @@ namespace dbat {
 
     struct LegacyLoadRoom {
         RoomId id;
+    };
+
+    struct Material {
+        mat::MaterialId data{mat::BONE};
     };
 
 

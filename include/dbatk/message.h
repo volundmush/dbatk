@@ -15,12 +15,15 @@ namespace dbat {
         MsgFormat& str(const std::string& msg);
         MsgFormat& direct(entt::entity recipient);
         MsgFormat& region(entt::entity reg);
-        MsgFormat& room(entt::entity room);
         MsgFormat& set(const std::string& name, entt::entity ent);
+        MsgFormat& exclude(entt::entity ent);
+        MsgFormat& in(Location loc);
         void send();
         std::string msg;
         entt::entity actor{entt::null};
-        std::vector<std::pair<MsgTargetType, entt::entity>> recipients;
+        std::vector<entt::entity> regions;
+        std::vector<Location> recipients;
+        std::set<entt::entity> toExclude;
         std::unordered_map<std::string, entt::entity> variables;
     protected:
         void sendTo(entt::entity recipient);

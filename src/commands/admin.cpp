@@ -326,6 +326,18 @@ namespace dbat::cmd {
 
     }
 
+    void AdmWhere::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto args = input["args"];
+
+        if(args.empty()) {
+            sendLine(ent, "Usage: .where <target>");
+            return;
+        }
+
+        sendLine(ent, op::renderWhere(args, ent));
+
+    }
+
     void registerAdminCommands() {
         registerCommand(std::make_shared<AdmTeleport>());
         registerCommand(std::make_shared<AdmGoto>());
@@ -334,6 +346,7 @@ namespace dbat::cmd {
         registerCommand(std::make_shared<AdmZone>());
         registerCommand(std::make_shared<AdmCheat>());
         registerCommand(std::make_shared<AdmExamine>());
+        registerCommand(std::make_shared<AdmWhere>());
 
     }
 

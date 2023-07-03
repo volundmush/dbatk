@@ -53,6 +53,16 @@ namespace dbat {
         async<void> run(double deltaTime) override;
     };
 
+    class ProcessDgRandom : public System {
+    public:
+        std::string getName() override {return "ProcessDgRandom";};
+        int64_t getPriority() override {return 55;};
+        async<bool> shouldRun(double deltaTime) override;
+        async<void> run(double deltaTime) override;
+    protected:
+        double timer={13.0};
+    };
+
     extern std::vector<std::shared_ptr<System>> sortedSystems;
     extern std::unordered_map<std::string, std::shared_ptr<System>> systemRegistry;
     void registerSystem(const std::shared_ptr<System>& system);

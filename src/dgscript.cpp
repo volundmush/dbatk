@@ -46,35 +46,22 @@ namespace dbat {
         if(j.contains("narg")) narg = j["narg"];
     }
 
-    static entt::entity parseDgObjectRef(const std::string& val) {
+    static std::optional<Location> parseDgObjectRef(const std::string& val) {
         boost::smatch match;
-        if (!boost::regex_search(val, match, obj_regex)) return entt::null;
+        if (!boost::regex_search(val, match, obj_regex)) return std::nullopt;
         auto id = std::stoull(match["id"]);
         auto gen = std::stoull(match["gen"]);
         auto obj = getObject(id, gen);
-        if(!registry.valid(obj)) return entt::null;
+        if(!registry.valid(obj)) return std::nullopt;
         if(match["slash"].matched) {
             std::string room = match["room"];
             if(room.empty()) room = "0";
-            auto roomId = boost::lexical_cast<std::size_t>(room);
-            auto area = registry.try_get<Area>(obj);
-            if(!area) return entt::null;
-            auto rfound = area->data.find(roomId);
-            if(rfound == area->data.end()) return entt::null;
-            return rfound->second;
+            return validDestination(obj, room);
         } else {
-            return obj;
-        }
-    }
-
-    void HasDgVars::checkEntity() {
-        for(auto &[name, v] : vars) {
-            if(v.index() == 1) continue;
-            auto val = std::get<std::string>(v);
-            if(isDgRef(val)) {
-                auto ent = parseDgObjectRef(val);
-                if(registry.valid(ent)) v = ent;
-            }
+            Location loc;
+            loc.locationType == LocationType::Absolute;
+            loc.data = obj;
+            return loc;
         }
     }
 
@@ -91,7 +78,7 @@ namespace dbat {
     DgVariant makeVar(const std::string& val) {
         if(isDgRef(val)) {
             auto ent = parseDgObjectRef(val);
-            if(registry.valid(ent)) return ent;
+            if(ent) return *ent;
         }
         return val;
     }
@@ -103,8 +90,8 @@ namespace dbat {
             if(v.index() == 0) {
                 j.push_back({name, std::get<std::string>(v)});
             } else {
-                auto ent = std::get<entt::entity>(v);
-                j.push_back({name, serializeDgRef(ent)});
+                auto loc = std::get<Location>(v);
+                j.push_back({name, loc.serialize()});
             }
         }
 
@@ -112,11 +99,20 @@ namespace dbat {
     }
 
     void HasDgVars::deserializeVars(const nlohmann::json &j) {
-        // j is an array of [<string>, <string>] pairs. The first string is the name of the variable,
-        // the second string is the value of the variable.
-        // We just set it as a string for now. checkEntity() will be called later.
-        for(auto& var : j) {
-            vars[var[0]] = var[1].get<std::string>();
+        // j is an array of [<string>, <json>] pairs. The first is the name of the variable,
+        // the second element is the value of the variable.
+
+        // If the second variable is a json object, it is a serialized Location object.
+        // Otherwise, it's a string.
+        for(auto &var : j) {
+            if(var.is_array() && var.size() == 2) {
+                auto name = var[0].get<std::string>();
+                if(var[1].is_string()) {
+                    setVar(name, var[1].get<std::string>());
+                } else if(var[1].is_object()) {
+                    setVar(name, Location(var[1]));
+                }
+            }
         }
     }
 
@@ -128,6 +124,13 @@ namespace dbat {
 
     void HasDgVars::setVar(const std::string& name, const std::string& var) {
         setVar(name, makeVar(var));
+    }
+
+    void HasDgVars::setVar(const std::string& name, entt::entity var) {
+        Location l;
+        l.locationType = LocationType::Absolute;
+        l.data = var;
+        setVar(name, l);
     }
 
     bool HasDgVars::hasVar(const std::string &name) {
@@ -325,7 +328,9 @@ namespace dbat {
     }
 
     void DgScript::scriptError(const std::string& msg) {
-        logger->error("{} - {}", scriptInfo(), msg);
+        auto formatted = fmt::format("{} - {}", scriptInfo(), msg);
+        adminAlert(formatted);
+        logger->error(formatted);
     }
 
     int64_t DgScript::execute() {
@@ -511,6 +516,10 @@ namespace dbat {
                     cmdUnset(matched);
                 }
 
+                else if(boost::iequals(cmd, "load")) {
+                    cmdLoad(matched);
+                }
+
                 else if(boost::iequals(cmd, "attach")) {
                     cmdAttach(matched);
                 }
@@ -540,7 +549,9 @@ namespace dbat {
                 }
 
                 else {
-                    executeCommand(ent, subCmd);
+                    if(!executeCommand(ent, subCmd)) {
+                        scriptError("Unknown command: " + cmd);
+                    }
                 }
             }
             currentLine++;
@@ -632,6 +643,80 @@ namespace dbat {
 
     }
 
+    void DgScript::cmdLoad(std::unordered_map<std::string, std::string> &matched) {
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("load command requires an argument");
+            return;
+        }
+
+        // split arg into two sections by the first space.
+        auto space = arg.find(' ');
+        if(space == std::string::npos) {
+            scriptError("load command requires a variable and a target");
+            return;
+        }
+
+        auto varName = arg.substr(0, space);
+        auto targetName = arg.substr(space + 1);
+        boost::trim(varName);
+        boost::trim(targetName);
+
+        MoveParams params;
+        params.moveType = MoveType::Traverse;
+        params.traverseType = TraverseType::System;
+        params.force = true;
+
+        if(!(boost::iequals(varName, "obj") || boost::iequals(varName, "mob"))) {
+            scriptError("load command requires a variable of type obj or mob");
+            return;
+        }
+
+        if(boost::iequals(varName, "obj")) varName = "item";
+        else if(boost::iequals(varName, "mob")) varName = "npc";
+
+        Location l;
+
+        if(auto r = registry.try_get<Room>(ent); r) {
+            // No matter what, we're loading into a room.
+            l.locationType = LocationType::Area;
+            l.x = r->id;
+            l.data = r->obj.getObject();
+        } else {
+            // ent is an Object. Items go in their inventory;
+            // NPCs appear in the same location as the object.
+            if(boost::iequals(varName, "item")) {
+                l.locationType = LocationType::Inventory;
+                l.data = ent;
+            } else {
+                if(auto lo = registry.try_get<Location>(ent); lo) {
+                    l = *lo;
+                } else {
+                    scriptError("load command requires a valid location");
+                    return;
+                }
+            }
+        }
+
+        params.dest = l;
+
+        auto protoName = fmt::format("{}:{}", varName, targetName);
+        auto proto = prototypes.find(protoName);
+        if(proto == prototypes.end()) {
+            scriptError(fmt::format("unable to find prototype for {}", protoName));
+            return;
+        }
+
+        auto obj = proto->second->spawn();
+        auto [res, err] = moveTo(obj, params);
+        if(!res) {
+            scriptError(fmt::format("unable to load {}: {}", protoName, err.value()));
+            deleteObject(obj);
+            return;
+        }
+
+    }
+
     void DgScript::cmdGlobal(std::unordered_map<std::string, std::string> &matched) {
         // copy the given script var matched["args"] to the global context if it exists.
         // This should be easy.
@@ -686,7 +771,7 @@ namespace dbat {
         boost::trim(targetName);
 
         auto parse = parseDgObjectRef(targetName);
-        if(!registry.valid(parse)) {
+        if(!parse) {
             scriptError("remote command requires a valid target");
             return;
         }
@@ -697,10 +782,22 @@ namespace dbat {
             return;
         }
 
-        auto &dg = registry.get_or_emplace<DgScripts>(parse, parse);
-        dg.setVar(varName, var.value());
-        setDirty(parse);
+        auto &e = parse.value();
+        entt::entity target = entt::null;
 
+        if(e.locationType == LocationType::Absolute) {
+            target = e.data;
+        }
+        else if(e.locationType == LocationType::Area) {
+            target = e.getRoom();
+        }
+        if(registry.valid(target)) {
+            auto &dg = registry.get_or_emplace<DgScripts>(target, target);
+            dg.setVar(varName, var.value());
+            setDirty(e.data);
+        } else {
+            scriptError("remote command requires a valid target");
+        }
     }
 
     void DgScript::cmdRdelete(std::unordered_map<std::string, std::string> &matched) {
@@ -724,14 +821,27 @@ namespace dbat {
         boost::trim(targetName);
 
         auto parse = parseDgObjectRef(targetName);
-        if(!registry.valid(parse)) {
+        if(!parse) {
             scriptError("rdelete command requires a valid target");
             return;
         }
 
-        auto &dg = registry.get_or_emplace<DgScripts>(parse, parse);
-        dg.clearVar(varName);
-        setDirty(parse);
+        auto &e = parse.value();
+        entt::entity target = entt::null;
+
+        if(e.locationType == LocationType::Absolute) {
+            target = e.data;
+        }
+        else if(e.locationType == LocationType::Area) {
+            target = e.getRoom();
+        }
+        if(registry.valid(target)) {
+            auto &dg = registry.get_or_emplace<DgScripts>(target, target);
+            dg.clearVar(varName);
+            setDirty(e.data);
+        } else {
+            scriptError("rdelete command requires a valid target");
+        }
     }
 
     void DgScript::cmdSet(std::unordered_map<std::string, std::string> &matched) {
@@ -796,7 +906,7 @@ namespace dbat {
         boost::trim(targetName);
 
         auto parse = parseDgObjectRef(targetName);
-        if(!registry.valid(parse)) {
+        if(!parse) {
             scriptError("attach command requires a valid target");
             return;
         }
@@ -815,8 +925,22 @@ namespace dbat {
             return;
         }
 
-        auto &dg = registry.get_or_emplace<DgScripts>(parse, parse);
-        dg.addScript(id);
+        auto &e = parse.value();
+        entt::entity target = entt::null;
+
+        if(e.locationType == LocationType::Absolute) {
+            target = e.data;
+        }
+        else if(e.locationType == LocationType::Area) {
+            target = e.getRoom();
+        }
+        if(registry.valid(target)) {
+            auto &dg = registry.get_or_emplace<DgScripts>(target, target);
+            dg.addScript(id);
+            setDirty(e.data);
+        } else {
+            scriptError("attach command requires a valid target");
+        }
 
     }
 
@@ -842,7 +966,7 @@ namespace dbat {
         boost::trim(targetName);
 
         auto parse = parseDgObjectRef(targetName);
-        if(!registry.valid(parse)) {
+        if(!parse) {
             scriptError("detach command requires a valid target");
             return;
         }
@@ -861,8 +985,22 @@ namespace dbat {
             return;
         }
 
-        auto &dg = registry.get_or_emplace<DgScripts>(parse, parse);
-        dg.removeScript(id);
+        auto &e = parse.value();
+        entt::entity target = entt::null;
+
+        if(e.locationType == LocationType::Absolute) {
+            target = e.data;
+        }
+        else if(e.locationType == LocationType::Area) {
+            target = e.getRoom();
+        }
+        if(registry.valid(target)) {
+            auto &dg = registry.get_or_emplace<DgScripts>(target, target);
+            dg.removeScript(id);
+            setDirty(e.data);
+        } else {
+            scriptError("detach command requires a valid target");
+        }
 
     }
 
@@ -1102,11 +1240,11 @@ namespace dbat {
         else if(op == ">=") return lhs >= rhs ? "1" : "0";
         else if(op == "<") return lhs < rhs ? "1" : "0";
         else if(op == ">") return lhs > rhs ? "1" : "0";
-        else if(op == "/=") return lhs != rhs ? "1" : "0";
+        else if(op == "/=") return boost::icontains(lhs, rhs) ? "1" : "0";
         else if(op == "+") return lhs + rhs;
         else if(op == "-") return lhs + rhs;
         else if(op == "*") return lhs + rhs;
-        else if(op == "/") return lhs + rhs;
+        else if(op == "/") return boost::icontains(lhs, rhs) ? "1" : "0";
         else if(op == "%") return lhs + rhs;
         else return "0";
 
@@ -1404,7 +1542,7 @@ namespace dbat {
     std::string DgScript::evaluateVar(const std::string& arg) {
         std::vector<DgMember> members;
         std::size_t startIndex = 0;
-        std::variant<std::string, entt::entity, DgFunc> lastResult = "";
+        std::variant<std::string, Location, DgFunc> lastResult = "";
 
         while(true) {
             members.emplace_back(getNextMember(arg, startIndex));
@@ -1417,7 +1555,9 @@ namespace dbat {
 
                 // REFER TO dg_variables.cpp line 280 for this shit...
                 if(boost::iequals(b.member, "self")) {
-                    lastResult = ent;
+                    Location l;
+                    l.locationType = LocationType::Inventory;
+                    l.data = ent;
                 }
                 else if(boost::iequals(b.member, "global")) {
                     // set DgFunc for DgGlobal...
@@ -1454,7 +1594,7 @@ namespace dbat {
                 boost::iequals(b.member, "teleport") || boost::iequals(b.member, "damage") || boost::iequals(b.member, "send")
                 || boost::iequals(b.member, "echo") || boost::iequals(b.member, "echoaround") || boost::iequals(b.member, "zoneecho") ||
                         boost::iequals(b.member, "asound") || boost::iequals(b.member, "at") || boost::iequals(b.member, "transform") ||
-                        boost::iequals(b.member, "recho")) {
+                        boost::iequals(b.member, "recho") || boost::iequals(b.member, "load")) {
                     lastResult = b.member;
                 }
                 else {
@@ -1466,7 +1606,8 @@ namespace dbat {
                         if(va.index() == 0) {
                             lastResult = std::get<std::string>(va);
                         } else {
-                            lastResult = std::get<entt::entity>(va);
+                            auto l = std::get<Location>(va);
+                            lastResult = l;
                         }
                     } else {
                         // nothing found at all? Well, guess we're getting an empty string...
@@ -1485,13 +1626,21 @@ namespace dbat {
                 }
                 else if(lastResult.index() == 1) {
                     // it's an entity...
-                    auto &e = std::get<entt::entity>(lastResult);
-                    auto &dg = registry.get_or_emplace<DgScripts>(e, e);
-                    auto res = dg.evalVar(shared_from_this(), b.member, b.call, b.arg);
-                    if(res.index() == 0) {
-                        lastResult = std::get<std::string>(res);
+                    auto &l = std::get<Location>(lastResult);
+                    entt::entity target = entt::null;
+                    if(l.locationType == LocationType::Absolute) target = l.data;
+                    else if(l.locationType == LocationType::Area) target = l.getRoom();
+
+                    if(registry.valid(target)) {
+                        auto &dg = registry.get_or_emplace<DgScripts>(target, target);
+                        auto res = dg.evalVar(shared_from_this(), b.member, b.call, b.arg);
+                        if(res.index() == 0) {
+                            lastResult = std::get<std::string>(res);
+                        } else {
+                            lastResult = std::get<Location>(res);
+                        }
                     } else {
-                        lastResult = std::get<entt::entity>(res);
+                        lastResult = "";
                     }
                 }
                 else if(lastResult.index() == 2) {
@@ -1501,7 +1650,8 @@ namespace dbat {
                     if(res.index() == 0) {
                         lastResult = std::get<std::string>(res);
                     } else {
-                        lastResult = std::get<entt::entity>(res);
+                        auto l = std::get<Location>(res);
+                        lastResult = l;
                     }
                 }
 
@@ -1518,8 +1668,13 @@ namespace dbat {
             return std::get<std::string>(lastResult);
         } else if(lastResult.index() == 1) {
             // lastResult is an entity... we can at least get its name or something.
-            auto e = std::get<entt::entity>(lastResult);
-            return getName(e);
+            auto l = std::get<Location>(lastResult);
+            if(l.locationType == LocationType::Absolute)
+                return getName(l.data);
+            else if(l.locationType == LocationType::Area) {
+                auto r = l.getRoom();
+                return getName(r);
+            } else return getName(l.data);
         } else {
             // lastResult is a DgFunc... let's just call it and return whatever it returns.
             auto &f = std::get<DgFunc>(lastResult);
@@ -1527,7 +1682,13 @@ namespace dbat {
             if(res.index() == 0) {
                 return std::get<std::string>(res);
             } else {
-                return getName(std::get<entt::entity>(res));
+                auto l = std::get<Location>(res);
+                if(l.locationType == LocationType::Absolute)
+                    return getName(l.data);
+                else if(l.locationType == LocationType::Area) {
+                    auto r = l.getRoom();
+                    return getName(r);
+                } else return getName(l.data);
             }
         }
     }
@@ -1800,7 +1961,10 @@ namespace dbat {
                 for(auto &item : inv->data) {
                     if(auto vnum = registry.try_get<ItemVnum>(item); vnum) {
                         if(vnum->data == val) {
-                            return item;
+                            Location l;
+                            l.locationType == LocationType::Absolute;
+                            l.data = item;
+                            return l;
                         }
                     }
                 }
@@ -1851,10 +2015,7 @@ namespace dbat {
 
         if(checkMember == "room") {
             if(auto loc = registry.try_get<Location>(ent); loc) {
-                if(loc->locationType == LocationType::Area) {
-                    auto &ar = registry.get<Area>(loc->data);
-                    return ar.data[loc->x];
-                }
+                return *loc;
             }
             return "";
         }
