@@ -29,6 +29,11 @@ namespace dbat::cmd {
         void execute(entt::entity ent, std::unordered_map<std::string, std::string>& input) override;
     };
 
+    struct ObjCommands : ObjCmd {
+        [[nodiscard]] std::string getCmdName() override {return "commands";};
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string>& input) override;
+    };
+
     /*
      * This command will allow you to move from room to room.
      * This is an "object" command because many things should have this functionality
@@ -87,12 +92,6 @@ namespace dbat::cmd {
 
     struct ObjEmote : ObjCmd {
         [[nodiscard]] std::string getCmdName() override { return "emote"; };
-        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
-    };
-
-    struct ObjEcho : ObjCmd {
-        [[nodiscard]] std::string getCmdName() override { return "echo"; };
-        [[nodiscard]] std::set<std::string> getAliases() override {return {"emit", "|"};};
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 

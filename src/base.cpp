@@ -208,6 +208,17 @@ namespace dbat {
         if(j.contains("z")) z = j["z"];
     }
 
+    Location::Location(entt::entity ent) {
+        if(auto r = registry.try_get<Room>(ent); r) {
+            data = r->obj.getObject();
+            locationType = LocationType::Area;
+            x = r->id;
+        } else {
+            locationType = LocationType::Absolute;
+            data = ent;
+        }
+    }
+
     nlohmann::json Location::serialize() {
         nlohmann::json j;
         if(data != entt::null) j["data"] = registry.get<ObjectId>(data);

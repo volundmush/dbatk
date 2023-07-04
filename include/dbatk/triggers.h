@@ -14,8 +14,8 @@ namespace dbat {
 
     int64_t triggerCommand(entt::entity actor, const std::string& cmd, const std::string& arg);
 
-    bool mobBribeTrigger(entt::entity actor, entt::entity target, int64_t amount, bool checkOnly = false);
-    bool mobReceiveTrigger(entt::entity actor, entt::entity target, entt::entity item, bool checkOnly = false);
+    int64_t mobBribeTrigger(entt::entity actor, entt::entity target, int64_t amount, bool checkOnly = false);
+    int64_t mobReceiveTrigger(entt::entity actor, entt::entity target, entt::entity item, bool checkOnly = false);
 
     // todo mob
     // bribe trigger

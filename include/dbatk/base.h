@@ -210,6 +210,7 @@ namespace dbat {
      * */
     struct Location {
         Location() = default;
+        explicit Location(entt::entity ent);
         explicit Location(const nlohmann::json &j);
         entt::entity data{entt::null};
         LocationType locationType{LocationType::Absolute};

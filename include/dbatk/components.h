@@ -236,6 +236,10 @@ namespace dbat {
         int64_t data{0};
     };
 
+    struct CostPerDay {
+        int64_t data{0};
+    };
+
     struct Money {
         int64_t data{0};
     };

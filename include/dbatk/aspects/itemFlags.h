@@ -124,4 +124,6 @@ namespace dbat::iflags {
 
     extern const std::vector<std::shared_ptr<ItemFlag>> itemFlags;
 
+    std::optional<IFlagId> getItemFlagId(const std::string& name, bool exact = true);
+
 }

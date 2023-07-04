@@ -13,6 +13,7 @@ namespace dbat {
         [[nodiscard]] virtual std::set<std::string> getKeys();
         [[nodiscard]] virtual std::string getCmdName() = 0;
         [[nodiscard]] virtual std::string getHelp() {return "";};
+        [[nodiscard]] virtual std::string getBrief() {return "";};
         [[nodiscard]] virtual std::string getHelpCategory() {return "Uncategorized";};
         [[nodiscard]] virtual int getPriority() {return 0;};
     };

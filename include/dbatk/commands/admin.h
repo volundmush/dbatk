@@ -51,5 +51,17 @@ namespace dbat::cmd {
         void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
     };
 
+    struct AdmSpawn : AdmCmd {
+        std::string getCmdName() override { return ".spawn"; };
+        std::set<std::string> getAliases() override { return {".sp"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmForce : AdmCmd {
+        std::string getCmdName() override { return ".force"; };
+        std::set<std::string> getAliases() override { return {".fo", "force"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
     void registerAdminCommands();
 }

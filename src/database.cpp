@@ -204,9 +204,13 @@ namespace dbat {
             j["Weight"] = weight->data;
         }
 
-        auto cost = registry.try_get<Cost>(ent);
-        if(cost) {
+
+        if(auto cost = registry.try_get<Cost>(ent); cost) {
             j["Cost"] = cost->data;
+        }
+
+        if(auto cost = registry.try_get<CostPerDay>(ent); cost) {
+            j["CostPerDay"] = cost->data;
         }
 
         auto lvlreq = registry.try_get<LevelRequirement>(ent);
@@ -354,9 +358,12 @@ namespace dbat {
             j["Prototype"] = proto->data;
         }
 
-        auto money = registry.try_get<Money>(ent);
-        if(money) {
+        if(auto money = registry.try_get<Money>(ent); money) {
             j["Money"] = money->data;
+        }
+
+        if(auto money = registry.try_get<MoneyPile>(ent); money) {
+            j["MoneyPile"] = money->data;
         }
 
         return j;
@@ -712,6 +719,21 @@ namespace dbat {
         if(j.contains("Money")) {
             auto &money = registry.get_or_emplace<Money>(ent);
             money.data = j["Money"];
+        }
+
+        if(j.contains("MoneyPile")) {
+            auto &money = registry.get_or_emplace<MoneyPile>(ent);
+            money.data = j["MoneyPile"];
+        }
+
+        if(j.contains("Cost")) {
+            auto &cost = registry.get_or_emplace<Cost>(ent);
+            cost.data = j["Cost"];
+        }
+
+        if(j.contains("CostPerDay")) {
+            auto &cost = registry.get_or_emplace<Cost>(ent);
+            cost.data = j["CostPerDay"];
         }
 
     }

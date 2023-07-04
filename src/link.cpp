@@ -61,7 +61,7 @@ namespace dbat {
 
     async<void> Link::run() {
         try {
-            co_await (runReader() || runWriter());
+            co_await (runReader() || runWriter() || runPinger());
         } catch (const boost::system::system_error& e) {
             logger->error("Error in Link::run(): {}", e.what());
             // Handle exceptions here if necessary
@@ -73,6 +73,19 @@ namespace dbat {
                 conn.close(boost::beast::websocket::close_code::normal);
             } catch(...) {
                 logger->error("Error closing WebSocket gracefully...");
+            }
+        }
+        co_return;
+    }
+
+    async<void> Link::runPinger() {
+        boost::asio::steady_timer timer(co_await boost::asio::this_coro::executor);
+        while(!is_stopped) {
+            timer.expires_after(100ms);
+            co_await timer.async_wait(boost::asio::use_awaitable);
+            if(!is_stopped) {
+                // use async_ping to send a ping...
+                co_await conn.async_ping(boost::beast::websocket::ping_data{}, boost::asio::use_awaitable);
             }
         }
         co_return;

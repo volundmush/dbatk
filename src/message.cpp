@@ -240,6 +240,13 @@ namespace dbat {
         }
     }
 
+    MsgFormat::MsgFormat(entt::entity ent, const std::string &msg) {
+        actor = ent;
+        this->msg = msg;
+        if(actor != entt::null)
+            direct(actor);
+    }
+
     void MsgFormat::sendTo(entt::entity recipient) {
         if(!registry.any_of<SessionHolder>(recipient)) return;
         if(filter && !filter(recipient)) return;

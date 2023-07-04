@@ -102,5 +102,11 @@ namespace dbat::iflags {
             std::make_shared<SimpleItemFlag>(MONEY, "MONEY")
     };
 
-
+    std::optional<IFlagId> getItemFlagId(const std::string& name, bool exact) {
+        auto found = partialMatch(name, itemFlags.begin(), itemFlags.end(), exact, [](const auto& flag) { return flag->getName(); });
+        if(found != itemFlags.end()) {
+            return static_cast<IFlagId>((*found)->getId());
+        }
+        return std::nullopt;
+    }
 }

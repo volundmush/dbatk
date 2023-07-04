@@ -6,6 +6,9 @@
 #include "dbatk/gametime.h"
 #include "dbatk/components.h"
 #include "dbatk/search.h"
+#include "dbatk/message.h"
+#include "dbatk/color.h"
+#include "dbatk/grammar.h"
 
 namespace dbat {
     std::unordered_map<std::size_t, std::shared_ptr<DgScriptPrototype>> dgScripts{};
@@ -58,10 +61,7 @@ namespace dbat {
             if(room.empty()) room = "0";
             return validDestination(obj, room);
         } else {
-            Location loc;
-            loc.locationType == LocationType::Absolute;
-            loc.data = obj;
-            return loc;
+            return Location(obj);
         }
     }
 
@@ -73,6 +73,19 @@ namespace dbat {
             auto &obj = registry.get<ObjectId>(ent);
             return obj.toString();
         }
+    }
+
+    std::string serializeDgRef(const Location &loc) {
+        auto &obj = registry.get<ObjectId>(loc.data);
+        if(loc.locationType == LocationType::Area) {
+            return fmt::format("{}/{}", obj.toString(), loc.x);
+        }
+        else if(loc.locationType == LocationType::Expanse ||
+            loc.locationType == LocationType::Map ||
+            loc.locationType == LocationType::Space) {
+            return fmt::format("{}/{},{},{}", obj.toString(), loc.x, loc.y, loc.z);
+        }
+        return obj.toString();
     }
 
     DgVariant makeVar(const std::string& val) {
@@ -127,10 +140,7 @@ namespace dbat {
     }
 
     void HasDgVars::setVar(const std::string& name, entt::entity var) {
-        Location l;
-        l.locationType = LocationType::Absolute;
-        l.data = var;
-        setVar(name, l);
+        setVar(name, Location(var));
     }
 
     bool HasDgVars::hasVar(const std::string &name) {
@@ -367,6 +377,12 @@ namespace dbat {
         currentLine = start;
 
         while(currentLine < end) {
+            if(!registry.valid(ent)) {
+                // our host Object has been deleted... bail.
+                setState(DgState::PURGED);
+                return retVal;
+            }
+
             if(state != DgState::RUNNING) {
                 // something changed our state so we need to bail out.
                 return retVal;
@@ -520,6 +536,22 @@ namespace dbat {
                     cmdLoad(matched);
                 }
 
+                else if(boost::iequals(cmd, "echo")) {
+                    cmdEcho(matched);
+                }
+
+                else if(boost::iequals(cmd, "purge")) {
+                    cmdPurge(matched);
+                }
+
+                else if(boost::iequals(cmd, "echoaround")) {
+                    cmdEchoaround(matched);
+                }
+
+                else if(boost::iequals(cmd, "eval")) {
+                    cmdEval(matched);
+                }
+
                 else if(boost::iequals(cmd, "attach")) {
                     cmdAttach(matched);
                 }
@@ -639,6 +671,155 @@ namespace dbat {
             } else {
                 return 0.1;
             }
+        }
+
+    }
+
+    void DgScript::cmdEval(std::unordered_map<std::string, std::string>& matched) {
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("eval command requires an argument");
+            return;
+        }
+
+        // split arg into two sections by the first space.
+        auto space = arg.find(' ');
+        if(space == std::string::npos) {
+            scriptError("eval command requires a variable and an expression");
+            return;
+        }
+
+        auto varName = arg.substr(0, space);
+        auto expr = arg.substr(space + 1);
+        boost::trim(varName);
+        boost::trim(expr);
+
+        auto subbed = evaluate(expr);
+        setVar(varName, subbed);
+
+    }
+
+    void DgScript::cmdEcho(std::unordered_map<std::string, std::string> &matched) {
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("echo command requires an argument");
+            return;
+        }
+
+        Location l;
+        if(auto r = registry.try_get<Room>(ent); r) {
+            l.data = r->obj.getObject();
+            l.x = r->id;
+            l.locationType = LocationType::Area;
+        } else {
+            auto loc = registry.try_get<Location>(ent);
+            if(!loc) {
+                scriptError("echo command requires a location");
+                return;
+            }
+            l = *loc;
+        }
+
+        MsgFormat m(ent, arg);
+        m.in(l);
+        m.send();
+
+    }
+
+    void DgScript::cmdEchoaround(std::unordered_map<std::string, std::string> &matched) {
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("echoaround command requires an argument");
+            return;
+        }
+
+        // split arg into two sections by the first space.
+        auto space = arg.find(' ');
+        if(space == std::string::npos) {
+            scriptError("echoaround command requires a target and a message");
+            return;
+        }
+
+        auto targetName = arg.substr(0, space);
+        auto message = arg.substr(space + 1);
+        boost::trim(targetName);
+        boost::trim(message);
+
+        Location l;
+        entt::entity target = entt::null;
+
+        // targetName should be a dgref... but it might not be.
+        auto parsed = parseDgObjectRef(targetName);
+        if(parsed) {
+            auto p = parsed.value();
+            if(p.locationType == LocationType::Absolute) {
+                target = p.data;
+                if(auto loc = registry.try_get<Location>(target); loc) {
+                    l = *loc;
+                } else {
+                    scriptError("echoaround command requires a valid target");
+                    return;
+                }
+            }
+            else if(p.locationType == LocationType::Area) {
+                l = p;
+            }
+        } else {
+            // it's not a dgref, so we assume it's a name.
+            if(registry.any_of<Room>(ent)) {
+                scriptError("Rooms cannot search for targets by name.");
+                return;
+            }
+            Search s(ent);
+            s.useAll(false);
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                s.in(*loc);
+            } else {
+                scriptError("echoaround name search requires a location");
+                return;
+            }
+
+            auto results = s.find(targetName);
+            if(results.empty()) {
+                scriptError("echoaround command requires a valid target");
+                return;
+            }
+            target = results.front();
+            if(auto loc = registry.try_get<Location>(target); loc) {
+                l = *loc;
+            } else {
+                scriptError("echoaround name search requires a location");
+                return;
+            }
+        }
+
+        MsgFormat m(ent, message);
+        m.in(l);
+        if(target != entt::null) m.exclude(target);
+        m.send();
+
+    }
+
+    void DgScript::cmdPurge(std::unordered_map<std::string, std::string> &matched) {
+        auto arg = matched["args"];
+        if(arg.empty()) {
+            scriptError("purge command requires an argument");
+            return;
+        }
+
+        Search s(ent);
+        s.inventory(ent);
+        s.useId(true);
+        s.setType(SearchType::Items);
+
+        auto results = s.find(arg);
+        if(results.empty()) {
+            scriptError("purge command requires a valid target");
+            return;
+        }
+
+        for(auto r : results) {
+            deleteObject(r);
         }
 
     }
@@ -1047,48 +1228,6 @@ namespace dbat {
 
     void DgScript::cmdDamage(std::unordered_map<std::string, std::string> &matched) {
         // todo: this inflicts damage. currently unimplemented...
-    }
-
-    void DgScript::cmdEchoaround(std::unordered_map<std::string, std::string> &matched) {
-// Syntax: <target> <message>
-        // <target> could be an ObjectId or a Name.
-        auto arg = matched["args"];
-        if(arg.empty()) {
-            scriptError("send command requires an argument");
-            return;
-        }
-
-        auto space = arg.find(' ');
-        if(space == std::string::npos) {
-            scriptError("send command requires a target and a message");
-            return;
-        }
-
-        auto targetName = arg.substr(0, space);
-        auto message = arg.substr(space + 1);
-        boost::trim(targetName);
-        boost::trim(message);
-
-        Search search(ent);
-        search.useAll(false).useId(true);
-
-        auto found = search.find(targetName);
-        if(found.empty()) return;
-        auto targ = found[0];
-
-        auto loc = registry.try_get<Location>(targ);
-        if(!loc) return;
-        if(loc->locationType == LocationType::Area) {
-            auto &area = registry.get<Area>(loc->data);
-            auto &room = area.data[loc->x];
-            auto rcon = registry.try_get<RoomContents>(room);
-            if(!rcon) return;
-            for(auto &e : rcon->data) {
-                if(e == targ) continue;
-                sendLine(e, message);
-            }
-        }
-
     }
 
     void DgScript::cmdAsound(std::unordered_map<std::string, std::string> &matched) {
@@ -1504,6 +1643,60 @@ namespace dbat {
         return out;
     }
 
+    DgVariant dgTextProcess(const std::shared_ptr<DgScript>& script, const std::string& member, bool call, const std::string& arg, const std::string& val) {
+        auto checkMember = boost::to_lower_copy(member);
+        boost::trim(checkMember);
+
+        if(checkMember == "strlen") {
+            return std::to_string(val.size());
+        }
+
+        if(checkMember == "trim") {
+            return boost::trim_copy(val);
+        }
+
+        if(checkMember == "contains") {
+            return boost::icontains(val, arg) ? "1" : "0";
+        }
+
+        if(checkMember == "car") {
+            // get everything before the first space in val.
+            auto pos = val.find(' ');
+            if(pos == std::string::npos) {
+                return val;
+            }
+            return val.substr(0, pos);
+        }
+
+        if(checkMember == "cdr") {
+            // get everything AFTER the first space in val, and if empty, return an empty string.
+            auto pos = val.find(' ');
+            if(pos == std::string::npos) {
+                return "";
+            }
+            return val.substr(pos + 1);
+        }
+
+        if(checkMember == "charat") {
+            // We are retrieving the character at the arg'th position. So 0 is the first character, 1 is the second...
+            // Arg must be coerced into a std::size_t and if this fails or the index is out of bounds, return empty string.
+            // else, return the character as a string.
+            try {
+                auto index = boost::lexical_cast<std::size_t>(arg);
+                if(index >= val.size()) {
+                    return "";
+                }
+                return std::string(1, val[index]);
+            }
+            catch(...) {
+                return "";
+            }
+        }
+
+        return "";
+
+    }
+
     struct DgMember {
         std::string member;
         bool call{false};
@@ -1555,9 +1748,7 @@ namespace dbat {
 
                 // REFER TO dg_variables.cpp line 280 for this shit...
                 if(boost::iequals(b.member, "self")) {
-                    Location l;
-                    l.locationType = LocationType::Inventory;
-                    l.data = ent;
+                    lastResult = Location(ent);
                 }
                 else if(boost::iequals(b.member, "global")) {
                     // set DgFunc for DgGlobal...
@@ -1621,8 +1812,14 @@ namespace dbat {
                 // a dead end and will just return whatever we've got. Strings don't have properties.
 
                 if(lastResult.index() == 0) {
-                    // it's a string... we are sol.
-                    lastResult = "";
+                    // it's a string... call the text processor.
+                    auto str = std::get<std::string>(lastResult);
+                    auto result = dgTextProcess(shared_from_this(), b.member, b.call, b.arg, str);
+                    if(result.index() == 0) {
+                        lastResult = std::get<std::string>(result);
+                    } else {
+                        lastResult = std::get<Location>(result);
+                    }
                 }
                 else if(lastResult.index() == 1) {
                     // it's an entity...
@@ -1667,14 +1864,9 @@ namespace dbat {
         if(lastResult.index() == 0) {
             return std::get<std::string>(lastResult);
         } else if(lastResult.index() == 1) {
-            // lastResult is an entity... we can at least get its name or something.
+            // lastResult is an entity... return a serialized reference.
             auto l = std::get<Location>(lastResult);
-            if(l.locationType == LocationType::Absolute)
-                return getName(l.data);
-            else if(l.locationType == LocationType::Area) {
-                auto r = l.getRoom();
-                return getName(r);
-            } else return getName(l.data);
+            return serializeDgRef(l);
         } else {
             // lastResult is a DgFunc... let's just call it and return whatever it returns.
             auto &f = std::get<DgFunc>(lastResult);
@@ -1683,12 +1875,7 @@ namespace dbat {
                 return std::get<std::string>(res);
             } else {
                 auto l = std::get<Location>(res);
-                if(l.locationType == LocationType::Absolute)
-                    return getName(l.data);
-                else if(l.locationType == LocationType::Area) {
-                    auto r = l.getRoom();
-                    return getName(r);
-                } else return getName(l.data);
+                return serializeDgRef(l);
             }
         }
     }
@@ -1812,6 +1999,27 @@ namespace dbat {
             return getName(ent);
         }
 
+        if(checkMember == "next_in_room") {
+            // This one is a pain in the ass. Since we're not a linked list like the original code,
+            // we will need to fake it. What we need to do is first check for a Location struct.
+            // If our locationType == LocationType::Inventory, then we need to grab the InventoryLocation
+            // of loc.data, find the index of ent, and then get the following ent if there is one.
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                if(loc->locationType != LocationType::Area) return "";
+                auto &inv = registry.get<RoomContents>(loc->data);
+                // Get the index of ent out of inv...
+                auto f = std::find(inv.data.begin(), inv.data.end(), ent);
+                if(f == inv.data.end()) return "";
+                while(true) {
+                    f++;
+                    if(f == inv.data.end()) return "";
+                    if(registry.any_of<Character>(*f))
+                        return Location(*f);
+                }
+            }
+            return "";
+        }
+
         if(auto isStat = cstat::characterStatNames.find(checkMember); isStat != cstat::characterStatNames.end()) {
             auto statId = isStat->second;
             auto statFound = cstat::characterStats.find(statId);
@@ -1930,15 +2138,18 @@ namespace dbat {
         }
 
         if(checkMember == "hisher") {
-            // TODO: Implement...
+            auto &s = registry.get_or_emplace<Sex>(ent);
+            return grammar::getPronoun(s.data, grammar::VerbPerson::ThirdPerson, grammar::PronounType::PossessivePronoun);
         }
 
         if(checkMember == "heshe") {
-            // TODO: Implement...
+            auto &s = registry.get_or_emplace<Sex>(ent);
+            return grammar::getPronoun(s.data, grammar::VerbPerson::ThirdPerson, grammar::PronounType::Subjective);
         }
 
         if(checkMember == "himher") {
-            // TODO: Implement...
+            auto &s = registry.get_or_emplace<Sex>(ent);
+            return grammar::getPronoun(s.data, grammar::VerbPerson::ThirdPerson, grammar::PronounType::Objective);
         }
 
         if(checkMember == "hunger") {
@@ -1955,20 +2166,24 @@ namespace dbat {
         }
 
         if(checkMember == "inventory") {
-            if(!goodVal) return "";
-            if(auto inv = registry.try_get<Inventory>(ent); inv) {
+            auto inv = registry.try_get<Inventory>(ent);
+            if(!inv) return "";
+            if(arg.empty()) {
+                if(!inv->data.empty()) {
+                    return Location(inv->data.front());
+                }
+            } else {
+                if(!goodVal) return "";
                 // we are going to search every item in inv->data for one with an ItemVnum component with data == val.
                 for(auto &item : inv->data) {
                     if(auto vnum = registry.try_get<ItemVnum>(item); vnum) {
                         if(vnum->data == val) {
-                            Location l;
-                            l.locationType == LocationType::Absolute;
-                            l.data = item;
-                            return l;
+                            return Location(item);
                         }
                     }
                 }
             }
+            return "";
         }
 
         if(checkMember == "master") {
@@ -2015,7 +2230,8 @@ namespace dbat {
 
         if(checkMember == "room") {
             if(auto loc = registry.try_get<Location>(ent); loc) {
-                return *loc;
+                if(loc->locationType == LocationType::Area)
+                    return *loc;
             }
             return "";
         }
@@ -2102,6 +2318,225 @@ namespace dbat {
                               const std::string &arg, double val, bool goodVal) {
 
         auto checkMember = member;
+        boost::trim(checkMember);
+        boost::to_lower(checkMember);
+
+        if(checkMember == "affects") {
+            if(arg.empty()) return "0";
+            // arg is gonna be a flag name...
+            auto aff = affect::getAffectId(arg);
+            if(!aff.has_value()) return "0";
+            if(auto ca = registry.try_get<ItemAffects>(ent); ca) {
+                return ca->data.test(aff.value()) ? "1" : "0";
+            }
+            return "0";
+        }
+
+        if(checkMember == "cost") {
+            // If arg is not empty, we'll be setting it. But we need to coerce arg into an int64_t...
+            if(!arg.empty()) {
+                if(goodVal) {
+                    auto &c = registry.get_or_emplace<Cost>(ent);
+                    c.data = static_cast<int64_t>(val);
+                }
+            }
+            if(auto c = registry.try_get<Cost>(ent); c) {
+                return std::to_string(c->data);
+            }
+            return "0";
+        }
+
+        if(checkMember == "cost_per_day") {
+            // If arg is not empty, we'll be setting it. But we need to coerce arg into an int64_t...
+            if(!arg.empty()) {
+                if(goodVal) {
+                    auto &c = registry.get_or_emplace<CostPerDay>(ent);
+                    c.data += static_cast<int64_t>(val);
+                    if(c.data < 0) c.data = 0;
+                }
+            }
+            if(auto c = registry.try_get<CostPerDay>(ent); c) {
+                return std::to_string(c->data);
+            }
+            return "0";
+        }
+
+        if(checkMember == "carried_by") {
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                if(loc->locationType == LocationType::Inventory)
+                    return Location(loc->data);
+            }
+            return "";
+        }
+
+        if(checkMember == "contents") {
+            if(auto inv = registry.try_get<Inventory>(ent); inv) {
+                if(!inv->data.empty()) {
+                    return Location(inv->data[0]);
+                }
+            }
+            return "";
+        }
+
+        if(checkMember == "vnum") {
+            if(auto v = registry.try_get<ItemVnum>(ent); v) {
+                return std::to_string(v->data);
+            }
+            return "";
+        }
+
+        if(checkMember == "count") {
+            if(auto inv = registry.try_get<Inventory>(ent); inv) {
+                return std::to_string(inv->data.size());
+            }
+            return "";
+        }
+
+        if(checkMember == "extra" || checkMember == "itemflag") {
+            if(arg.empty()) {
+                std::vector<std::string> extras;
+                if(auto ifla = registry.try_get<ItemFlags>(ent); ifla) {
+                    for(auto &i : iflags::itemFlags) {
+                        if(ifla->data.test(i->getId())) {
+                            extras.emplace_back(i->getName());
+                        }
+                    }
+                }
+                return boost::join(extras, " ");
+            };
+            // arg is gonna be a flag name...
+            auto iflag = iflags::getItemFlagId(arg);
+            if(!iflag.has_value()) return "0";
+            if(auto ifla = registry.try_get<ItemFlags>(ent); ifla) {
+                return ifla->data.test(iflag.value()) ? "1" : "0";
+            }
+            return "0";
+        }
+
+        if(checkMember == "has_in") {
+            if(arg.empty()) return "0";
+            auto filter = [&](entt::entity e) {
+                return checkSearch(e, arg, ent);
+            };
+            auto results = recursiveItemSearch(ent, filter);
+            return results.empty() ? "0" : "1";
+        }
+
+        if(checkMember == "health") {
+            if(!arg.empty()) {
+                if(goodVal) {
+                    auto &c = registry.get_or_emplace<Durability>(ent);
+                    c.durability += static_cast<int64_t>(val);
+                    if(c.durability < 0) c.durability = 0;
+                    if(c.durability > c.maxDurability) c.durability = c.maxDurability;
+                }
+            }
+            if(auto c = registry.try_get<Durability>(ent); c) {
+                return std::to_string(c->durability);
+            }
+            return "0";
+        }
+
+        if(checkMember == "id") {
+            auto &o = registry.get<ObjectId>(ent);
+            return o.toString();
+        }
+
+        if(checkMember == "is_inroom" || checkMember == "room") {
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                if(loc->locationType == LocationType::Area)
+                    return *loc;
+            }
+            return "";
+        }
+
+        if(checkMember == "is_pc") return "0";
+
+        if(checkMember == "level") {
+            if(auto l = registry.try_get<LevelRequirement>(ent); l) {
+                return std::to_string(l->data);
+            }
+            return "";
+        }
+
+        if(checkMember == "name") {
+            if(auto key = registry.try_get<Keywords>(ent); key) {
+                return std::string(key->data);
+            }
+            return stripAnsi(getName(ent));
+        }
+
+        if(checkMember == "next_in_list") {
+            // This one is a pain in the ass. Since we're not a linked list like the original code,
+            // we will need to fake it. What we need to do is first check for a Location struct.
+            // If our locationType == LocationType::Inventory, then we need to grab the InventoryLocation
+            // of loc.data, find the index of ent, and then get the following ent if there is one.
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                if(loc->locationType != LocationType::Inventory) return "";
+                auto &inv = registry.get<Inventory>(loc->data);
+                // Get the index of ent out of inv...
+                auto find = std::find(inv.data.begin(), inv.data.end(), ent);
+                if(find == inv.data.end()) return "";
+                while(true) {
+                    find++;
+                    if(find == inv.data.end()) return "";
+                    if(registry.any_of<Item>(*find))
+                        return Location(*find);
+                }
+            }
+            return "";
+        }
+
+        if(checkMember == "shortdesc") {
+            if(!arg.empty()) setName(ent, fmt::format("{} @wnicknamed @D(@C{}@D)@n", getName(ent), arg));
+            return getName(ent);
+        }
+
+        if(checkMember == "setaffects") {
+            // TODO: Implement...
+        }
+
+        if(checkMember == "setextra") {
+            // TODO: implement...
+        }
+
+        if(checkMember == "size") {
+            // TODO: implement size picker...
+            if(auto s = registry.try_get<Size>(ent); s) {
+                return size::sizes[s->data]->getName();
+            }
+            return "";
+        }
+
+        if(checkMember == "type") {
+            // TODO: this must be completely re-implemented as Type is no longer a thing...
+        }
+
+        if(checkMember == "timer") {
+            // TODO: Implement this...
+        }
+
+        if(checkMember == "weight") {
+            if(!arg.empty()) {
+                if(goodVal) {
+                    auto &c = registry.get_or_emplace<Weight>(ent);
+                    c.data += val;
+                    if(c.data < 0) c.data = 0;
+                }
+            }
+            if(auto w = registry.try_get<Weight>(ent); w) {
+                return std::to_string(w->data);
+            }
+            return "";
+        }
+
+        if(checkMember == "worn_by") {
+            if(auto loc = registry.try_get<Location>(ent); loc) {
+                if(loc->locationType == LocationType::Equipment)
+                    return Location(loc->data);
+            }
+            return "";
+        }
 
         return "";
 

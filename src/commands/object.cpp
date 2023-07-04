@@ -50,7 +50,69 @@ namespace dbat::cmd {
 
     }
 
+    void ObjCommands::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto args = input["args"];
 
+        auto commands = getSortedCommands(ent);
+
+        if(args.empty()) {
+            // We will display all available commands the player can see/use.
+            std::vector<Command*> cmds;
+            for(auto &[key, cmd] : commands) {
+                // If cmd is not in the vector, add it.
+                if(!cmd->isAvailable(ent)) continue;
+                if(std::find(cmds.begin(), cmds.end(), cmd) == cmds.end()) {
+                    cmds.push_back(cmd);
+                }
+            }
+            // Sort the vector by cmd->getCmdName()
+            std::sort(cmds.begin(), cmds.end(), [](Command* a, Command* b) {
+                return a->getCmdName() < b->getCmdName();
+            });
+
+            std::vector<std::string> lines;
+
+            for(auto c : cmds) {
+                auto brief = c->getBrief();
+                auto aliases = c->getAliases();
+                std::vector<std::string> sections;
+                sections.emplace_back(c->getCmdName());
+                if(!aliases.empty()) {
+                    sections.emplace_back(fmt::format("({})", boost::join(aliases, ", ")));
+                }
+                if(!brief.empty()) {
+                    sections.emplace_back(fmt::format("{}", brief));
+                }
+                lines.emplace_back(boost::join(sections, " - "));
+            }
+            sendLine(ent, boost::join(lines, "\n"));
+
+        } else {
+            for(auto &[key, cmd] : commands) {
+                if(!cmd->isAvailable(ent))
+                    continue;
+                if(boost::iequals(args, key)) {
+                    std::vector<std::string> lines;
+                    lines.emplace_back("Help: " + cmd->getCmdName());
+                    auto aliases = cmd->getAliases();
+                    if(!aliases.empty()) {
+                        lines.emplace_back(fmt::format("Aliases: {}", boost::join(aliases, ", ")));
+                    }
+                    lines.emplace_back("------------------");
+                    auto help = cmd->getHelp();
+                    if(help.empty()) {
+                        lines.emplace_back("No help available.");
+                    } else {
+                        lines.emplace_back(help);
+                    }
+                    lines.emplace_back("------------------");
+                    sendLine(ent, boost::join(lines, "\n"));
+                    return;
+                }
+            }
+            sendLine(ent, fmt::format("Command '{}' not found.", args));
+        }
+    }
 
     OpResult<> ObjMove::canExecute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         // This command requires that ent be in a location.
@@ -152,27 +214,6 @@ namespace dbat::cmd {
         m.send();
     }
 
-    void ObjEcho::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
-        auto loc = registry.try_get<Location>(ent);
-        if(!loc) {
-            sendLine(ent, "You are nowhere. There is nobody to notice you.");
-            return;
-        }
-
-        auto args = input["args"];
-        if(args.empty()) {
-            sendLine(ent, "Echo what?");
-            return;
-        }
-
-        // TODO: Handle the *target stuff for roleplay later.
-
-        MsgFormat m(ent, args);
-        m.in(*loc);
-        m.send();
-    }
-
-
     void ObjSemipose::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         auto loc = registry.try_get<Location>(ent);
         if(!loc) {
@@ -249,6 +290,13 @@ namespace dbat::cmd {
             sendLine(ent, "Get what?");
             return;
         }
+        for(auto &w : words) {
+            boost::trim(w);
+        }
+        if(boost::iequals(words[0], "all")) {
+            words[0] = "all.*";
+        }
+
         else if(words.size() == 1) {
             // We are getting from the location...
             s.in(*loc);
@@ -535,6 +583,11 @@ namespace dbat::cmd {
             s.inventory(ent);
             s.useAll(true);
             s.setType(SearchType::Items);
+            s.useAsterisk(true);
+
+            if(boost::iequals(args, "all")) {
+                args = "all.*";
+            }
 
             results = s.find(args);
             if(results.empty()) {
@@ -617,6 +670,7 @@ namespace dbat::cmd {
         std::vector<std::shared_ptr<Command>> commands;
         commands.push_back(std::make_shared<ObjLook>());
         commands.push_back(std::make_shared<ObjHelp>());
+        commands.push_back(std::make_shared<ObjCommands>());
         commands.push_back(std::make_shared<ObjMove>());
         commands.push_back(std::make_shared<ObjQuit>());
         commands.push_back(std::make_shared<ObjSay>());

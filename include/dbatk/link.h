@@ -39,6 +39,7 @@ namespace dbat {
     protected:
         async<void> runReader();
         async<void> runWriter();
+        async<void> runPinger();
         async<void> createUpdateClient(const nlohmann::json &j);
         boost::beast::websocket::stream<boost::beast::tcp_stream> conn;
         bool is_stopped;

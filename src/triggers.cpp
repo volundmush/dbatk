@@ -31,6 +31,10 @@ namespace dbat {
             for(auto &sc : dg.scripts) {
                 if(!(sc->prototype->triggerType.test(mtrig::GREET_ALL) || (sc->prototype->triggerType.test(mtrig::GREET) && canDetect(e, actor, 0)))) continue;
                 if(sc->state != DgState::DORMANT) continue;
+
+                // if actor is a NPC, then this will only continue if this is a GREET_ALL triggerType.
+                if(registry.all_of<NPC>(actor) && !sc->prototype->triggerType.test(mtrig::GREET_ALL)) continue;
+
                 auto rand = randomNumber(1,100);
                 if(rand >= sc->prototype->narg) continue;
                 sc->setVar("actor", actor);
@@ -242,34 +246,31 @@ namespace dbat {
         return 0;
     }
 
-    bool mobBribeTrigger(entt::entity actor, entt::entity target, int64_t amount, bool checkOnly) {
+    int64_t mobBribeTrigger(entt::entity actor, entt::entity target, int64_t amount, bool checkOnly) {
         // This trigger will check for scripts on the location (room) and NPCs in the room.
 
         auto dg = registry.try_get<DgScripts>(target);
-        if(!dg) return false;
-        bool hadTrigger = false;
+        if(!dg) return 0;
+
         for(auto &sc : dg->scripts) {
             if(!sc->prototype->triggerType.test(mtrig::BRIBE)) continue;
             if(sc->state != DgState::DORMANT) continue;
-            hadTrigger = true;
-            if(checkOnly) return true;
             sc->setVar("actor", actor);
             sc->setVar("amount", std::to_string(amount));
-            sc->execute();
+            return sc->execute();
         }
 
-        return hadTrigger;
+        return 0;
 
     }
 
-    bool mobReceiveTrigger(entt::entity actor, entt::entity target, entt::entity item, bool checkOnly) {
+    int64_t mobReceiveTrigger(entt::entity actor, entt::entity target, entt::entity item, bool checkOnly) {
         auto dg = registry.try_get<DgScripts>(target);
-        if(!dg) return false;
+        if(!dg) return 0;
 
         for(auto &sc : dg->scripts) {
             if(!sc->prototype->triggerType.test(mtrig::RECEIVE)) continue;
             if(sc->state != DgState::DORMANT) continue;
-            if(checkOnly) return true;
             sc->setVar("actor", actor);
             sc->setVar("object", item);
             auto outval = sc->execute();
@@ -277,7 +278,7 @@ namespace dbat {
             return outval;
         }
 
-        return true;
+        return 0;
     }
 
 }

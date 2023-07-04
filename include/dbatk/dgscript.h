@@ -18,6 +18,7 @@ namespace dbat {
     DgVariant dgRandom(const std::shared_ptr<DgScript>& script, const std::string& member, bool call, const std::string& arg);
 
     std::string serializeDgRef(entt::entity ent);
+    std::string serializeDgRef(const Location &loc);
 
     DgVariant makeVar(const std::string& str);
 
@@ -190,7 +191,9 @@ namespace dbat {
         void cmdAsound(std::unordered_map<std::string, std::string>& matched);
         void cmdRecho(std::unordered_map<std::string, std::string>& matched);
         void cmdLoad(std::unordered_map<std::string, std::string>& matched);
-
+        void cmdEval(std::unordered_map<std::string, std::string>& matched);
+        void cmdEcho(std::unordered_map<std::string, std::string>& matched);
+        void cmdPurge(std::unordered_map<std::string, std::string>& matched);
     };
 
     class DgScripts : public HasDgVars {

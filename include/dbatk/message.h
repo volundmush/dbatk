@@ -11,7 +11,7 @@ namespace dbat {
 
     class MsgFormat {
     public:
-        MsgFormat(entt::entity ent, const std::string &msg) : actor(ent), msg(msg) {};
+        MsgFormat(entt::entity ent, const std::string &msg);
         MsgFormat& str(const std::string& msg);
         MsgFormat& direct(entt::entity recipient);
         MsgFormat& region(entt::entity reg);

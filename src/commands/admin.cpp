@@ -4,6 +4,7 @@
 #include "dbatk/search.h"
 #include "dbatk/zone.h"
 #include "dbatk/operations/information.h"
+#include "dbatk/database.h"
 
 namespace dbat::cmd {
 
@@ -338,6 +339,104 @@ namespace dbat::cmd {
 
     }
 
+    void AdmSpawn::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto loc = registry.try_get<Location>(ent);
+
+        if(!loc) {
+            sendLine(ent, "You must be in a room to use this command.");
+            return;
+        }
+
+        auto args = input["args"];
+
+        if(args.empty()) {
+            sendLine(ent, "Usage: .spawn <protoName>");
+            return;
+        }
+
+        auto proto = prototypes.find(args);
+        if(proto == prototypes.end()) {
+            sendLine(ent, "No such prototype. Remember they're case sensitive.");
+            return;
+        }
+
+        auto obj = proto->second->spawn();
+        bool isItem = registry.any_of<Item>(obj);
+
+
+        MoveParams mp;
+
+        mp.moveType = isItem ? MoveType::Get : MoveType::Traverse;
+        mp.traverseType = TraverseType::System;
+        mp.force = true;
+        mp.mover = ent;
+
+        if(isItem) {
+            Location l;
+            l.data = ent;
+            l.locationType = LocationType::Inventory;
+            mp.dest = l;
+        } else {
+            mp.dest = *loc;
+        }
+
+        if(auto [res, err] = moveTo(obj, mp); !res) {
+            sendLine(ent, fmt::format("Failed to spawn {} - {}: {}", args, proto->second->entityName(), err.value()));
+            deleteObject(obj);
+            return;
+        } else {
+            sendLine(ent, fmt::format("Spawned {} : {}", proto->second->name, getDisplayName(obj, ent)));
+        }
+    }
+
+    void AdmForce::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
+        auto args = input["args"];
+
+        if(args.empty()) {
+            sendLine(ent, "Usage: .force <target> <command>");
+            return;
+        }
+
+        auto space = args.find(' ');
+        if(space == std::string::npos) {
+            sendLine(ent, "Usage: .force <target> <command>");
+            return;
+        }
+
+        auto target = args.substr(0, space);
+        auto command = args.substr(space + 1);
+        boost::trim(target);
+        boost::trim(command);
+
+        Search s(ent);
+        if(auto loc = registry.try_get<Location>(ent); loc) {
+            s.in(*loc);
+        }
+        s.useId(true);
+        s.setType(SearchType::Characters);
+
+        auto results = s.find(target);
+        if(results.empty()) {
+            sendLine(ent, "No such target.");
+            return;
+        }
+
+        auto targetEnt = results.front();
+
+        if(command.empty()) {
+            sendLine(ent, "Usage: .force <target> <command>");
+            return;
+        }
+
+        // TODO: Permissions check...
+        auto result = executeCommand(targetEnt, command);
+        if(!result) {
+            sendLine(ent, fmt::format("Failed to force {} to execute: {}", getDisplayName(targetEnt, ent), command));
+            return;
+        }
+
+    }
+
     void registerAdminCommands() {
         registerCommand(std::make_shared<AdmTeleport>());
         registerCommand(std::make_shared<AdmGoto>());
@@ -347,7 +446,8 @@ namespace dbat::cmd {
         registerCommand(std::make_shared<AdmCheat>());
         registerCommand(std::make_shared<AdmExamine>());
         registerCommand(std::make_shared<AdmWhere>());
-
+        registerCommand(std::make_shared<AdmSpawn>());
+        registerCommand(std::make_shared<AdmForce>());
     }
 
 }

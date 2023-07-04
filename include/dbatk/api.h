@@ -149,4 +149,6 @@ namespace dbat {
 
     void adminAlert(const std::string& txt, int64_t superVisorLevel = 1);
 
+    std::vector<entt::entity> recursiveItemSearch(entt::entity container, std::function<bool(entt::entity)> filter);
+
 }

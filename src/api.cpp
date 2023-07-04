@@ -234,27 +234,50 @@ namespace dbat {
     }
 
     OpResult<> canAddToInventory(entt::entity ent, entt::entity item, MoveParams& params) {
-        if(registry.all_of<NPC, DgScripts>(ent)) {
+        if(registry.all_of<NPC>(ent)) {
             if(params.moveType == MoveType::Give) {
-                // The NPC is being given something. We need to check if they can accept it.
-                if(auto mp = registry.try_get<MoneyPile>(item); mp) {
-                    // Avoid accidentally giving money to a mob who won't accept it.
-                    if(!mobBribeTrigger(params.mover, ent, mp->data, true)) {
-                        return {false, "They don't need it."};
+                bool wantsIt = false;
+                if(registry.any_of<DgScripts>(ent)) {
+                    // The NPC is being given something. We need to check if they can accept it.
+                    if(auto mp = registry.try_get<MoneyPile>(item); mp) {
+                        // Avoid accidentally giving money to a mob who won't accept it.
+                        wantsIt = mobBribeTrigger(params.mover, ent, mp->data);
+                    } else {
+                        // It's a normal item. Check if they can accept it.
+                        wantsIt = mobReceiveTrigger(params.mover, ent, item);
                     }
-                } else {
-                    // It's a normal item. Check if they can accept it.
-                    if(!mobReceiveTrigger(params.mover, ent, item, true)) {
-                        return {false, "They don't need it."};
-                    }
+                }
+                if(!wantsIt) {
+                    if(!params.force) return {false, "They don't want it."};
                 }
             }
         }
+
+        if(params.moveType == MoveType::Get && !params.force) {
+            if(auto iflags = registry.try_get<ItemFlags>(item) ; iflags) {
+                if(iflags->data.test(iflags::NOTAKE)) {
+                    return {false, "You can't take that."};
+                }
+            }
+        }
+
+        // Todo: weight checks and other things...
 
         return {true, std::nullopt};
     }
 
     OpResult<> canEnterRoom(entt::entity ent, entt::entity room, MoveParams& params) {
+
+        if(params.moveType == MoveType::Drop) {
+            bool blockDrop = false;
+            // need to check both drop trigger on the item, and drop trigger on the room...
+
+
+            if(blockDrop && !params.force) {
+                return {false, "You can't drop that here."};
+            }
+        }
+
         return {true, std::nullopt};
     }
 
@@ -267,9 +290,6 @@ namespace dbat {
     }
 
     void removeFromInventory(entt::entity ent, entt::entity item, MoveParams& params) {
-
-
-
         if(auto i = registry.try_get<Inventory>(ent); i) {
             i->data.erase(std::remove(i->data.begin(), i->data.end(), item), i->data.end());
             if(i->data.empty()) {
@@ -298,6 +318,7 @@ namespace dbat {
                     } else {
                         MsgFormat m(ent, "$You() $conj(leave) this place.");
                         m.in(l);
+                        m.exclude(ent);
                         m.send();
                     }
                 }
@@ -337,35 +358,31 @@ namespace dbat {
 
 
     void addToInventory(entt::entity ent, entt::entity item, MoveParams& params) {
-        if(registry.all_of<NPC, DgScripts>(ent)) {
-            if(params.moveType == MoveType::Give) {
-                // The NPC is being given something. Call the appropriate triggers.
-                if(auto mp = registry.try_get<MoneyPile>(item); mp) {
-                    mobBribeTrigger(params.mover, ent, mp->data);
-                } else {
-                    mobReceiveTrigger(params.mover, ent, item);
-                }
-            }
-        }
 
         if(!params.quiet) {
             if(params.moveType == MoveType::Get) {
-                auto prev = params.previousLocation.value();
-                if(prev.locationType == LocationType::Area) {
-                    // it was in a room...
+                if(params.previousLocation) {
+                    auto prev = params.previousLocation.value();
+                    if(prev.locationType == LocationType::Area) {
+                        // it was in a room...
+                        MsgFormat m(ent, "$You() $conj(get) $you(item).");
+                        m.set("item", item);
+                        m.in(prev);
+                        m.send();
+                    }
+                    else if(prev.locationType == LocationType::Inventory) {
+                        // it was in a container...
+                        MsgFormat m(ent, "$You() $conj(get) $you(item) from $you(container).");
+                        m.set("item", item);
+                        m.set("container", prev.data);
+                        if(auto loc = registry.try_get<Location>(ent); loc) {
+                            m.in(*loc);
+                        }
+                        m.send();
+                    }
+                } else {
                     MsgFormat m(ent, "$You() $conj(get) $you(item).");
                     m.set("item", item);
-                    m.in(prev);
-                    m.send();
-                }
-                else if(prev.locationType == LocationType::Inventory) {
-                    // it was in a container...
-                    MsgFormat m(ent, "$You() $conj(get) $you(item) from $you(container).");
-                    m.set("item", item);
-                    m.set("container", prev.data);
-                    if(auto loc = registry.try_get<Location>(ent); loc) {
-                        m.in(*loc);
-                    }
                     m.send();
                 }
             }
@@ -447,13 +464,16 @@ namespace dbat {
 
         // triggers.
         bool reverse = false;
+
         if(params.traverseType != TraverseType::System) {
-            reverse = !mobTriggerGreet(ent, params.dir);
-            if(!reverse) reverse = !mobTriggerEntry(ent);
-            if(!reverse) reverse = !roomTriggerEntry(ent, room, params.dir);
+            if(registry.any_of<Character>(ent)) {
+                reverse = !mobTriggerGreet(ent, params.dir);
+                if(!reverse) reverse = !mobTriggerEntry(ent);
+                if(!reverse) reverse = !roomTriggerEntry(ent, room, params.dir);
+            }
         }
 
-        if(reverse) {
+        if(reverse && !params.force) {
             if(params.previousLocation) {
                 MoveParams mp = params;
                 mp.previousLocation = loc;
@@ -1128,6 +1148,22 @@ namespace dbat {
                 conn->sendText(formatted);
             }
         }
+    }
+
+    std::vector<entt::entity> recursiveItemSearch(entt::entity container, std::function<bool(entt::entity)> filter) {
+        std::vector<entt::entity> out;
+
+        if(auto i = registry.try_get<Inventory>(container); i) {
+            for(auto item : i->data) {
+                if(filter(item)) {
+                    out.push_back(item);
+                }
+                auto subItems = recursiveItemSearch(item, filter);
+                out.insert(out.end(), subItems.begin(), subItems.end());
+            }
+        }
+
+        return out;
     }
 
 }
