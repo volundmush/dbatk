@@ -1,7 +1,15 @@
 #pragma once
 #include "dbatk/base.h"
+#include <set>
 
 namespace dbat {
+
+    namespace cmd {
+        void registerAdminCommands();
+        void registerConnectCommands();
+        void registerLoginCommands();
+        void registerObjectCommands();
+    }
 
     /*
      * The base Command class used for all commands that'll be used by
@@ -41,8 +49,6 @@ namespace dbat {
     extern std::vector<std::shared_ptr<Command>> commandRegistry;
 
     OpResult<> registerCommand(const std::shared_ptr<Command>& entry);
-
-    extern boost::regex command_regex;
 
     std::unordered_map<std::string, std::string> parseCommand(std::string_view input);
 

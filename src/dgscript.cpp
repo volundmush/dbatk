@@ -9,6 +9,8 @@
 #include "dbatk/message.h"
 #include "dbatk/color.h"
 #include "dbatk/grammar.h"
+#include <boost/regex.hpp>
+#include "fmt/format.h"
 
 namespace dbat {
     std::unordered_map<std::size_t, std::shared_ptr<DgScriptPrototype>> dgScripts{};
@@ -48,6 +50,8 @@ namespace dbat {
         if(j.contains("arglist")) arglist = j["arglist"];
         if(j.contains("narg")) narg = j["narg"];
     }
+
+    static boost::regex obj_regex(R"(^#(?<id>\d+)(:(?<gen>\d+)?)?)");
 
     static std::optional<Location> parseDgObjectRef(const std::string& val) {
         boost::smatch match;

@@ -1,6 +1,7 @@
 #include "dbatk/message.h"
 #include "dbatk/grammar.h"
 #include "dbatk/api.h"
+#include <boost/regex.hpp>
 
 namespace dbat {
 

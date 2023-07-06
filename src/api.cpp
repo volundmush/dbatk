@@ -2,12 +2,14 @@
 #include "dbatk/components.h"
 #include "dbatk/color.h"
 #include "dbatk/session.h"
+#include "dbatk/connection.h"
 #include "dbatk/operations/movement.h"
 #include "dbatk/operations/information.h"
 #include "dbatk/commands.h"
 #include "dbatk/triggers.h"
 #include "dbatk/grammar.h"
 #include "dbatk/message.h"
+#include "fmt/format.h"
 
 namespace dbat {
 

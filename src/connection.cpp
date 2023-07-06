@@ -7,6 +7,7 @@
 #include "dbatk/database.h"
 #include "dbatk/api.h"
 #include "dbatk/components.h"
+#include "fmt/format.h"
 
 namespace dbat {
 

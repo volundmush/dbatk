@@ -1,16 +1,14 @@
 #include "dbatk/core.h"
-#include "dbatk/connection.h"
+#include "dbatk/link.h"
 #include "dbatk/database.h"
 #include "dbatk/config.h"
 #include "dbatk/system.h"
-#include "dbatk/commands/connect.h"
-#include "dbatk/commands/login.h"
-#include "dbatk/commands/object.h"
-#include "dbatk/commands/admin.h"
+#include "dbatk/commands.h"
 #include "dbatk/grammar.h"
 #include "dbatk/game.h"
 #include "sodium.h"
-
+#include <spdlog/sinks/stdout_color_sinks.h>
+#include <spdlog/sinks/rotating_file_sink.h>
 
 namespace dbat {
 
@@ -56,7 +54,7 @@ namespace dbat {
         // Next, we need to create the config::thermiteEndpoint from config::thermiteAddress and config::thermitePort
         logger->info("Setting up thermite endpoint...");
         try {
-            config::thermiteEndpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(config::thermiteAddress), config::thermitePort);
+            thermiteEndpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(config::thermiteAddress), config::thermitePort);
         } catch (const boost::system::system_error& ex) {
             logger->critical("Failed to create thermite endpoint: {}", ex.what());
             shutdown(EXIT_FAILURE);
@@ -76,7 +74,7 @@ namespace dbat {
         // use config::thermiteAddress and config::thermitePort to intitialize config::thermiteEndpoint.
         logger->info("Initializing thermite endpoint...");
         try {
-            config::thermiteEndpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(config::thermiteAddress), config::thermitePort);
+            thermiteEndpoint = boost::asio::ip::tcp::endpoint(boost::asio::ip::make_address(config::thermiteAddress), config::thermitePort);
         } catch (const boost::system::system_error& ex) {
             logger->critical("Failed to create thermite endpoint: {}", ex.what());
             shutdown(EXIT_FAILURE);

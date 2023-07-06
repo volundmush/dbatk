@@ -1,4 +1,5 @@
 #include "dbatk/grammar.h"
+#include "fmt/format.h"
 
 namespace dbat::grammar {
 

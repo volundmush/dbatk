@@ -2,7 +2,17 @@
 
 namespace dbat::pflags {
 
-    const std::vector<std::shared_ptr<SimplePlayerFlag>> playerFlags = {
+    class SimplePlayerFlag : public PlayerFlag {
+    public:
+        SimplePlayerFlag(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
+    };
+
+    const std::vector<std::shared_ptr<PlayerFlag>> playerFlags = {
             std::make_shared<SimplePlayerFlag>(KILLER, "KILLER"),
             std::make_shared<SimplePlayerFlag>(THIEF, "THIEF"),
             std::make_shared<SimplePlayerFlag>(FROZEN, "FROZEN"),

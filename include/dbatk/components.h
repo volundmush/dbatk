@@ -1,6 +1,8 @@
 #pragma once
 
-#include "dbatk/base.h"
+#include <map>
+#include <bitset>
+#include "dbatk/coordinates.h"
 #include "dbatk/aspects/admFlags.h"
 #include "dbatk/aspects/affect.h"
 #include "dbatk/aspects/celFlags.h"
@@ -10,7 +12,6 @@
 #include "dbatk/aspects/direction.h"
 #include "dbatk/aspects/effect.h"
 #include "dbatk/aspects/exitFlags.h"
-#include "dbatk/aspects/gridTile.h"
 #include "dbatk/aspects/itemFlags.h"
 #include "dbatk/aspects/liquid.h"
 #include "dbatk/aspects/material.h"

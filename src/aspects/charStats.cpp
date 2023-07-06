@@ -3,6 +3,150 @@
 
 namespace dbat::cstat {
 
+    // Real Stats section...
+    class AttributeStat : public BaseCharacterStat {
+    public:
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 5.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 5.0;};
+    };
+
+    class Strength : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return STRENGTH;};
+        [[nodiscard]] std::string getName() const override {return "strength";};
+    };
+
+    class Constitution : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return CONSTITUTION;};
+        [[nodiscard]] std::string getName() const override {return "constitution";};
+    };
+
+    class Dexterity : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return DEXTERITY;};
+        [[nodiscard]] std::string getName() const override {return "dexterity";};
+    };
+
+    class Intelligence : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return INTELLIGENCE;};
+        [[nodiscard]] std::string getName() const override {return "intelligence";};
+    };
+
+    class Speed : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return SPEED;};
+        [[nodiscard]] std::string getName() const override {return "speed";};
+    };
+
+    class Wisdom : public AttributeStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return WISDOM;};
+        [[nodiscard]] std::string getName() const override {return "wisdom";};
+    };
+
+    class Alignment : public BaseCharacterStat {
+        [[nodiscard]] std::size_t getId() const override {return ALIGNMENT;};
+        [[nodiscard]] std::string getName() const override {return "alignment";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return -1000.0;};
+        [[nodiscard]] std::optional<double> getMaximumBase(entt::entity ent) const override {return 1000.0;};
+    };
+
+    class Experience : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return EXPERIENCE;};
+        [[nodiscard]] std::string getName() const override {return "experience";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 0.0;};
+    };
+
+    class Level : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return LEVEL;};
+        [[nodiscard]] std::string getName() const override {return "level";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 1.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 1.0;};
+    };
+
+    class Suppress : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return SUPPRESS;};
+        [[nodiscard]] std::string getName() const override {return "suppress";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 100.0;};
+        [[nodiscard]] std::optional<double> getMaximumBase(entt::entity ent) const override {return 100.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 1.0;};
+    };
+
+    class Armor : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return ARMOR;};
+        [[nodiscard]] std::string getName() const override {return "armor";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+    };
+
+    class PowerLevel : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return POWERLEVEL;};
+        [[nodiscard]] std::string getName() const override {return "powerlevel";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 5.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 1.0;};
+    };
+
+    class Stamina : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return STAMINA;};
+        [[nodiscard]] std::string getName() const override {return "stamina";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 5.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 1.0;};
+    };
+
+    class Ki : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return KI;};
+        [[nodiscard]] std::string getName() const override {return "ki";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 5.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 1.0;};
+    };
+
+    class DamagePowerLevel : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return DAMAGE_POWERLEVEL;};
+        [[nodiscard]] std::string getName() const override {return "damage_powerlevel";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 0.0;};
+    };
+
+    class DamageStamina : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return DAMAGE_STAMINA;};
+        [[nodiscard]] std::string getName() const override {return "damage_stamina";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 0.0;};
+    };
+
+    class DamageKi : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return DAMAGE_KI;};
+        [[nodiscard]] std::string getName() const override {return "damage_ki";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 0.0;};
+    };
+
+    class DamageLifeForce : public BaseCharacterStat {
+    public:
+        [[nodiscard]] std::size_t getId() const override {return DAMAGE_LIFEFORCE;};
+        [[nodiscard]] std::string getName() const override {return "damage_lifeforce";};
+        [[nodiscard]] double getDefault(entt::entity ent) const override {return 0.0;};
+        [[nodiscard]] std::optional<double> getMinimumBase(entt::entity ent) const override {return 0.0;};
+    };
+
+
+    // Virtual Stats
+    // Level first. It is 1 + (experience / 1000) rounded down.
+
+
     const std::unordered_map<StatId, std::shared_ptr<BaseCharacterStat>> characterStats = {
             // Real stats.
             {STRENGTH, std::make_shared<Strength>()},

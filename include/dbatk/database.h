@@ -1,7 +1,16 @@
 #pragma once
 #include "dbatk/base.h"
+#include "SQLiteCpp/SQLiteCpp.h"
+#include <bitset>
 
 namespace dbat {
+
+    struct Location;
+
+    // For backwards compatability with the old DBAT code, we have this map which effectively replicates
+    // the old 'world' variable. It is filled with the rooms from Objects that are marked GLOBALROOM.
+    // Beware of ID collisions when setting objects GLOBALROOM.
+    extern std::unordered_map<RoomId, Location> legacyRooms;
 
     extern std::unique_ptr<SQLite::Database> db;
 

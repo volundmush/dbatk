@@ -1,6 +1,17 @@
 #include "dbatk/aspects/liquid.h"
 
 namespace dbat::liq {
+
+    class SimpleLiquid : public Liquid {
+    public:
+        SimpleLiquid(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
+    };
+
     const std::vector<std::shared_ptr<Liquid>> liquids = {
             std::make_shared<SimpleLiquid>(WATER, "WATER"),
             std::make_shared<SimpleLiquid>(BEER, "BEER"),

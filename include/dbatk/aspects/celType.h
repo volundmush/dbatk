@@ -1,6 +1,6 @@
 #pragma once
 
-#include "dbatk/aspects/flags.h"
+#include "dbatk/base.h"
 
 namespace dbat::celtype {
     enum CelestialTypeId : uint8_t {
@@ -18,16 +18,6 @@ namespace dbat::celtype {
         virtual void onLoad(entt::entity room) {};
         virtual void onSet(entt::entity room) {};
         virtual void onClear(entt::entity room) {};
-    };
-
-    class SimpleCelType : public CelType {
-    public:
-        SimpleCelType(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
-        [[nodiscard]] std::size_t getId() const override { return id; }
-        [[nodiscard]] std::string getName() const override { return name; }
-    protected:
-        std::size_t id;
-        std::string name;
     };
 
     std::optional<CelestialTypeId> getCelTypeId(const std::string& name, bool exact);

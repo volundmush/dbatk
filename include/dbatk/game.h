@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/base.h"
+#include "dbatk/link.h"
 
 namespace dbat {
 

@@ -1,12 +1,15 @@
 #pragma once
 #include "dbatk/base.h"
-
+#include <set>
+#include <bitset>
+#include <variant>
 
 namespace dbat {
 
     class DgScripts;
 
     class DgScript;
+    struct Location;
 
     using DgVariant = std::variant<std::string, Location>;
     using DgFunc = std::function<DgVariant(const std::shared_ptr<DgScript>&, const std::string&, bool, const std::string&)>;

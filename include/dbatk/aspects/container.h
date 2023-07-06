@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/aspects/flags.h"
+#include "dbatk/base.h"
 
 namespace dbat::con {
     enum ContainerFlagId : uint8_t {

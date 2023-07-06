@@ -3,6 +3,7 @@
 #include "dbatk/api.h"
 #include "dbatk/components.h"
 #include "dbatk/config.h"
+#include "fmt/format.h"
 
 namespace dbat {
 

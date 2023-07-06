@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/aspects/flags.h"
+#include "dbatk/base.h"
 
 namespace dbat::pflags {
     enum PFlagId : std::size_t {
@@ -87,17 +87,14 @@ namespace dbat::pflags {
 
     constexpr std::size_t countPlayerFlags = 80;
 
-    class SimplePlayerFlag : public BaseFlag {
+    class PlayerFlag : public BaseFlag {
     public:
-        SimplePlayerFlag(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
-        [[nodiscard]] std::size_t getId() const override { return id; }
-        [[nodiscard]] std::string getName() const override { return name; }
-    protected:
-        std::size_t id;
-        std::string name;
+        virtual void onLoad(entt::entity ent) {};
+        virtual void onSet(entt::entity ent) {};
+        virtual void onClear(entt::entity ent) {};
     };
 
-    extern const std::vector<std::shared_ptr<SimplePlayerFlag>> playerFlags;
+    extern const std::vector<std::shared_ptr<PlayerFlag>> playerFlags;
 
     std::optional<PFlagId> getPlayerFlagId(const std::string& name, bool exact = true);
 

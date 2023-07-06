@@ -9,6 +9,8 @@ namespace dbat {
         Direct
     };
 
+    struct Location;
+
     class MsgFormat {
     public:
         MsgFormat(entt::entity ent, const std::string &msg);

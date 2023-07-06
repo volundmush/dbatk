@@ -6,6 +6,7 @@
 #include "dbatk/zone.h"
 #include "dbatk/dgscript.h"
 #include "dbatk/session.h"
+#include "fmt/format.h"
 
 namespace dbat::op {
 

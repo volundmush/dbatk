@@ -2,6 +2,142 @@
 
 namespace dbat::race {
 
+    struct NonPlayableRace : Race {
+        [[nodiscard]] bool isPlayable() override {return false;}
+    };
+
+    struct Formless : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return FORMLESS;}
+        [[nodiscard]] std::string getName() override {return "Formless";}
+        [[nodiscard]] std::string getAbbreviation() override {return "---";}
+    };
+
+    struct Human : Race {
+        [[nodiscard]] RaceId getId() override {return HUMAN;}
+        [[nodiscard]] std::string getName() override {return "Human";}
+    };
+
+    struct Saiyan : Race {
+        [[nodiscard]] RaceId getId() override {return SAIYAN;}
+        [[nodiscard]] std::string getName() override {return "Saiyan";}
+    };
+
+    struct Icer : Race {
+        [[nodiscard]] RaceId getId() override {return ICER;}
+        [[nodiscard]] std::string getName() override {return "Icer";}
+    };
+
+    struct Konatsu : Race {
+        [[nodiscard]] RaceId getId() override {return KONATSU;}
+        [[nodiscard]] std::string getName() override {return "Konatsu";}
+    };
+
+    struct Namekian : Race {
+        [[nodiscard]] RaceId getId() override {return NAMEKIAN;}
+        [[nodiscard]] std::string getName() override {return "Namekian";}
+    };
+
+    struct Mutant : Race {
+        [[nodiscard]] RaceId getId() override {return MUTANT;}
+        [[nodiscard]] std::string getName() override {return "Mutant";}
+    };
+
+    struct Kanassan : Race {
+        [[nodiscard]] RaceId getId() override {return KANASSAN;}
+        [[nodiscard]] std::string getName() override {return "Kanassan";}
+    };
+
+    struct HalfSaiyan : Race {
+        [[nodiscard]] RaceId getId() override {return HALFSAIYAN;}
+        [[nodiscard]] std::string getName() override {return "Half-Saiyan";}
+        [[nodiscard]] std::string getAbbreviation() override {return "H-S";}
+    };
+
+    struct BioAndroid : Race {
+        [[nodiscard]] RaceId getId() override {return BIOANDROID;}
+        [[nodiscard]] std::string getName() override {return "Bio-Android";}
+    };
+
+    struct Android : Race {
+        [[nodiscard]] RaceId getId() override {return ANDROID;}
+        [[nodiscard]] std::string getName() override {return "Android";}
+    };
+
+    struct Demon : Race {
+        [[nodiscard]] RaceId getId() override {return DEMON;}
+        [[nodiscard]] std::string getName() override {return "Demon";}
+    };
+
+    struct Majin : Race {
+        [[nodiscard]] RaceId getId() override {return MAJIN;}
+        [[nodiscard]] std::string getName() override {return "Majin";}
+    };
+
+    struct Kai : Race {
+        [[nodiscard]] RaceId getId() override {return KAI;}
+        [[nodiscard]] std::string getName() override {return "Kai";}
+    };
+
+    struct Tuffle : Race {
+        [[nodiscard]] RaceId getId() override {return TUFFLE;}
+        [[nodiscard]] std::string getName() override {return "Tuffle";}
+        [[nodiscard]] size::SizeId getSize() override {return size::SMALL;}
+    };
+
+    struct Hoshijin : Race {
+        [[nodiscard]] RaceId getId() override {return HOSHIJIN;}
+        [[nodiscard]] std::string getName() override {return "Hoshijin";}
+    };
+
+    struct Animal : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return ANIMAL;}
+        [[nodiscard]] std::string getName() override {return "Animal";}
+    };
+
+    struct Saiba : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return SAIBA;}
+        [[nodiscard]] std::string getName() override {return "Saiba";}
+    };
+
+    struct Serpent : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return SERPENT;}
+        [[nodiscard]] std::string getName() override {return "Serpent";}
+    };
+
+    struct Ogre : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return OGRE;}
+        [[nodiscard]] std::string getName() override {return "Ogre";}
+        [[nodiscard]] size::SizeId getSize() override {return size::LARGE;}
+    };
+
+    struct Yardratian : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return YARDRATIAN;}
+        [[nodiscard]] std::string getName() override {return "Yardratian";}
+    };
+
+    struct Arlian : Race {
+        [[nodiscard]] RaceId getId() override {return ARLIAN;}
+        [[nodiscard]] std::string getName() override {return "Arlian";}
+    };
+
+    struct Dragon : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return DRAGON;}
+        [[nodiscard]] std::string getName() override {return "Dragon";}
+        [[nodiscard]] std::string getAbbreviation() override {return "Drg";}
+    };
+
+    struct Mechanical : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return MECHANICAL;}
+        [[nodiscard]] std::string getName() override {return "Mechanical";}
+    };
+
+    struct Spirit : NonPlayableRace {
+        [[nodiscard]] RaceId getId() override {return SPIRIT;}
+        [[nodiscard]] std::string getName() override {return "Spirit";}
+        [[nodiscard]] size::SizeId getSize() override {return size::TINY;}
+    };
+
+
     std::vector<std::shared_ptr<Race>> races = {
             std::make_shared<Formless>(),
             std::make_shared<Human>(),

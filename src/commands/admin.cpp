@@ -1,12 +1,75 @@
-#include "dbatk/commands/admin.h"
+#include "dbatk/commands.h"
 #include "dbatk/api.h"
 #include "dbatk/components.h"
 #include "dbatk/search.h"
 #include "dbatk/zone.h"
 #include "dbatk/operations/information.h"
 #include "dbatk/database.h"
+#include "fmt/format.h"
 
 namespace dbat::cmd {
+    struct AdmCmd : Command {
+        bool isUsable(entt::entity ent) override {return true;};
+    };
+
+
+    struct AdmTeleport : AdmCmd {
+        std::string getCmdName() override { return ".teleport"; };
+        std::set<std::string> getAliases() override { return {".tel"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmGoto : AdmCmd {
+        std::string getCmdName() override { return "goto"; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmAt : AdmCmd {
+        std::string getCmdName() override { return "at"; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmList : AdmCmd {
+        std::string getCmdName() override { return ".list"; };
+        std::set<std::string> getAliases() override { return {".li"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmZone : AdmCmd {
+        std::string getCmdName() override { return ".zone"; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmCheat : AdmCmd {
+        std::string getCmdName() override { return ".cheat"; };
+        std::set<std::string> getAliases() override { return {".ch"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmExamine : AdmCmd {
+        std::string getCmdName() override { return ".examine"; };
+        std::set<std::string> getAliases() override { return {".ex"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmWhere : AdmCmd {
+        std::string getCmdName() override { return ".where"; };
+        std::set<std::string> getAliases() override { return {".wh"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmSpawn : AdmCmd {
+        std::string getCmdName() override { return ".spawn"; };
+        std::set<std::string> getAliases() override { return {".sp"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
+    struct AdmForce : AdmCmd {
+        std::string getCmdName() override { return ".force"; };
+        std::set<std::string> getAliases() override { return {".fo", "force"}; };
+        void execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) override;
+    };
+
 
     void AdmTeleport::execute(entt::entity ent, std::unordered_map<std::string, std::string> &input) {
         // lsargs is who or what's being teleported and rsargs is the destination...

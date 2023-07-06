@@ -1,6 +1,16 @@
 #include "dbatk/aspects/material.h"
 
 namespace dbat::mat {
+    class SimpleMaterial : public Material {
+    public:
+        SimpleMaterial(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
+    };
+
     const std::vector<std::shared_ptr<Material>> materials = {
             std::make_shared<SimpleMaterial>(BONE, "BONE"),
             std::make_shared<SimpleMaterial>(CERAMIC, "CERAMIC"),

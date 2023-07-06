@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/aspects/flags.h"
+#include "dbatk/base.h"
 
 namespace dbat::aflags {
     // These are special powers afforded to admins and builders for interacting with the game world at
@@ -42,15 +42,6 @@ namespace dbat::aflags {
         virtual void onClear(entt::entity room) {};
     };
 
-    class SimpleAdminFlag : public AdminFlag {
-    public:
-        SimpleAdminFlag(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
-        [[nodiscard]] std::size_t getId() const override { return id; }
-        [[nodiscard]] std::string getName() const override { return name; }
-    protected:
-        std::size_t id;
-        std::string name;
-    };
 
     constexpr std::size_t countAdminFlags = 8;
 

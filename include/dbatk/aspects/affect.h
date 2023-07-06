@@ -1,5 +1,5 @@
 #pragma once
-#include "dbatk/aspects/flags.h"
+#include "dbatk/base.h"
 
 namespace dbat::affect {
     enum AffectId : uint8_t {

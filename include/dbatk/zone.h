@@ -1,7 +1,8 @@
 #pragma once
-#include "dbatk/base.h"
 #include <map>
 #include <bitset>
+#include "dbatk/base.h"
+
 
 namespace dbat {
 

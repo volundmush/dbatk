@@ -1,9 +1,10 @@
 #include "dbatk/commands.h"
 #include "dbatk/components.h"
+#include <boost/regex.hpp>
 
 namespace dbat {
 
-    boost::regex command_regex(R"((?i)^(?<full>(?<cmd>[^\s\/]+)(?<switches>(\/\w+){0,})?(?:\s+(?<args>(?<lsargs>[^=]+)(?:=(?<rsargs>.*))?))?))");
+    static boost::regex command_regex(R"((?i)^(?<full>(?<cmd>[^\s\/]+)(?<switches>(\/\w+){0,})?(?:\s+(?<args>(?<lsargs>[^=]+)(?:=(?<rsargs>.*))?))?))");
 
     std::unordered_map<std::string, std::string> parseCommand(std::string_view input) {
         std::unordered_map<std::string, std::string> out;

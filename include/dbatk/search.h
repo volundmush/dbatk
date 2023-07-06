@@ -12,6 +12,8 @@ namespace dbat {
         Items = 5
     };
 
+    struct Location;
+
     class Search {
     public:
         explicit Search(entt::entity ent);

@@ -1,6 +1,16 @@
 #include "dbatk/aspects/charWear.h"
 
 namespace dbat::cwear {
+    class SimpleCharacterWear : public CharacterWear {
+    public:
+        SimpleCharacterWear(std::size_t id, std::string name) : id(id), name(std::move(name)) {}
+        [[nodiscard]] std::size_t getId() const override { return id; }
+        [[nodiscard]] std::string getName() const override { return name; }
+    protected:
+        std::size_t id;
+        std::string name;
+    };
+
     const std::vector<std::shared_ptr<CharacterWear>> characterWears = {
             std::make_shared<SimpleCharacterWear>(FINGER, "FINGER"),
             std::make_shared<SimpleCharacterWear>(NECK, "NECK"),

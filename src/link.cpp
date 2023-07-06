@@ -1,8 +1,16 @@
 #include "dbatk/link.h"
 #include "dbatk/connection.h"
 #include "dbatk/config.h"
+#include <boost/asio/experimental/awaitable_operators.hpp>
+#include <boost/beast/core/buffers_to_string.hpp>
 
 namespace dbat {
+    using namespace std::chrono_literals;
+    using namespace boost::asio::experimental::awaitable_operators;
+
+    boost::asio::ip::tcp::endpoint thermiteEndpoint;
+
+    std::unique_ptr<boost::asio::io_context> executor;
 
     std::unique_ptr<LinkManager> linkManager;
     std::unique_ptr<Link> link;
@@ -19,7 +27,7 @@ namespace dbat {
                 do_standoff = false;
             }
 
-            auto &endpoint = config::thermiteEndpoint;
+            auto &endpoint = thermiteEndpoint;
 
             try {
                 logger->info("LinkManager: Connecting to {}:{}...", endpoint.address().to_string(), endpoint.port());

@@ -5,8 +5,25 @@
 #include "dbatk/link.h"
 #include "dbatk/api.h"
 #include "dbatk/config.h"
+#include "fmt/format.h"
 
 namespace dbat {
+
+    static std::unordered_set<ObjectId> dirty;
+
+    void setDirty(entt::entity ent, bool override) {
+        if(!registry.valid(ent)) return;
+        auto objid = registry.try_get<ObjectId>(ent);
+        if(!objid) {
+            return;
+        }
+        setDirty(*objid, override);
+    }
+
+    void setDirty(const ObjectId& id, bool override) {
+        if(gameIsLoading && !override) return;
+        dirty.insert(id);
+    }
 
     entt::entity PrototypeData::spawn() {
         auto ent = createObject();

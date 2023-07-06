@@ -1,9 +1,11 @@
 #include "dbatk/base.h"
 #include "sodium.h"
 #include "dbatk/components.h"
+#include "fmt/format.h"
+#include <boost/regex.hpp>
 
 namespace dbat {
-    std::unique_ptr<boost::asio::io_context> executor;
+
     std::shared_ptr<spdlog::logger> logger;
 
     entt::registry registry;
@@ -18,20 +20,6 @@ namespace dbat {
         objects[id.index] = std::make_pair(id.generation, obj);
         registry.emplace<ObjectId>(obj, id);
         return obj;
-    }
-
-    void setDirty(entt::entity ent, bool override) {
-        if(!registry.valid(ent)) return;
-        auto objid = registry.try_get<ObjectId>(ent);
-        if(!objid) {
-            return;
-        }
-        setDirty(*objid, override);
-    }
-
-    void setDirty(const ObjectId& id, bool override) {
-        if(gameIsLoading && !override) return;
-        dirty.insert(id);
     }
 
     std::string ObjectId::toString() const {
@@ -90,8 +78,8 @@ namespace dbat {
     }
 
     // the obj_regex is supposed to watch for patterns like #5 or #8721:1680642313 and capture the numbers.
-    boost::regex obj_regex(R"(^#(?<id>\d+)(:(?<gen>\d+)?)?)");
-    boost::regex dg_regex(R"(^#(?<id>\d+)(:(?<gen>\d+))(?<slash>\/(?<room>\d+)?)?)");
+    static boost::regex obj_regex(R"(^#(?<id>\d+)(:(?<gen>\d+)?)?)");
+    static boost::regex dg_regex(R"(^#(?<id>\d+)(:(?<gen>\d+))(?<slash>\/(?<room>\d+)?)?)");
 
     // This is true if the string matches obj_regex but has no gen.
     bool isObjRef(const std::string& str) {
@@ -141,36 +129,8 @@ namespace dbat {
     std::random_device randomDevice;
     std::default_random_engine randomEngine(randomDevice());
 
-    std::unordered_set<ObjectId> dirty;
+
     std::unordered_map<RoomId, Location> legacyRooms;
-
-    GridPoint::GridPoint(const nlohmann::json& j) {
-        x = j[0];
-        y = j[1];
-        z = j[2];
-    }
-
-    nlohmann::json GridPoint::serialize() const {
-        nlohmann::json j;
-        j[0] = x;
-        j[1] = y;
-        j[2] = z;
-        return j;
-    }
-
-    SectorPoint::SectorPoint(const nlohmann::json& j) {
-        x = j[0];
-        y = j[1];
-        z = j[2];
-    }
-
-    nlohmann::json SectorPoint::serialize() const {
-        nlohmann::json j;
-        j[0] = x;
-        j[1] = y;
-        j[2] = z;
-        return j;
-    }
 
     OpResult<> hashPassword(std::string_view password) {
         char hashed_password[crypto_pwhash_STRBYTES];
@@ -195,80 +155,7 @@ namespace dbat {
         return {true, std::nullopt};
     }
 
-    Location::Location(const nlohmann::json& j) {
-        if(j.contains("data")) {
-            ObjectId obj(j["data"]);
-            data = obj.getObject();
-        }
-        if(j.contains("locationType")) {
-            locationType = j["locationType"].get<LocationType>();
-        }
-        if(j.contains("x")) x = j["x"];
-        if(j.contains("y")) y = j["y"];
-        if(j.contains("z")) z = j["z"];
-    }
 
-    Location::Location(entt::entity ent) {
-        if(auto r = registry.try_get<Room>(ent); r) {
-            data = r->obj.getObject();
-            locationType = LocationType::Area;
-            x = r->id;
-        } else {
-            locationType = LocationType::Absolute;
-            data = ent;
-        }
-    }
-
-    nlohmann::json Location::serialize() {
-        nlohmann::json j;
-        if(data != entt::null) j["data"] = registry.get<ObjectId>(data);
-        j["locationType"] = locationType;
-        if(x != 0.0) j["x"] = x;
-        if(y != 0.0) j["y"] = y;
-        if(z != 0.0) j["z"] = z;
-
-        return j;
-    }
-
-    std::string Location::roomString() {
-        if(locationType == LocationType::Area) {
-            return fmt::format("{}/{:.0f}", registry.get<ObjectId>(data).toString(), x);
-        }
-        if(locationType == LocationType::Expanse || locationType == LocationType::Map) {
-            return fmt::format("{}/{:.0f}:{:.0f}:{:.0f}", registry.get<ObjectId>(data).toString(), x, y, z);
-        }
-        if(locationType == LocationType::Space) {
-            return fmt::format("{}/{}:{}:{}", registry.get<ObjectId>(data).toString(), x, y, z);
-        }
-
-        return "";
-    }
-
-    entt::entity Location::findRoom(RoomId id) {
-        if(locationType == LocationType::Area) {
-            auto &area = registry.get<Area>(data);
-            auto find = area.data.find(id);
-            if(find != area.data.end()) return find->second;
-        }
-        return entt::null;
-    }
-
-    entt::entity Location::getRoom() {
-        if(locationType == LocationType::Area) {
-            return findRoom(x);
-        }
-        return entt::null;
-    }
 
 }
 
-namespace nlohmann {
-    void to_json(json& j, const dbat::ObjectId& o) {
-        j = json{o.index, o.generation};
-    }
-
-    void from_json(const json& j, dbat::ObjectId& o) {
-        j.at(0).get_to(o.index);
-        j.at(1).get_to(o.generation);
-    }
-}

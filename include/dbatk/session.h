@@ -1,7 +1,11 @@
 #pragma once
-#include "dbatk/connection.h"
+#include "dbatk/coordinates.h"
+#include <chrono>
 
 namespace dbat {
+    struct Message;
+    struct ObjectId;
+    struct Connection;
     // The Session class represents a specific session of play while a Character is online.
     // A Session is created when a Character logs in, and is destroyed when the Character logs out.
     // It acts as a middle-man and also a repository for data relevant to just this session, and
